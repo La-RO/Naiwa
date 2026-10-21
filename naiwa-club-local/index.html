@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173e2c">
+  <meta name="description" content="Naiwa Club 的互联网奶蛙收藏室：日常表情、奶蛙名画、穿搭与变体、出没现场，以及独立影像放映室。每件收录附有来源。">
+  <title>naiwa club — Please remain round.</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="data/catalogue.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#collection">跳到奶蛙图库</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="wordmark" href="#top" aria-label="Naiwa Club 首页"><span class="brand-dot" aria-hidden="true"></span>naiwa club<span class="wordmark-star" aria-hidden="true">✳</span></a>
+      <button class="menu-toggle" aria-label="展开导航" aria-expanded="false" aria-controls="main-nav"><span></span><span></span></button>
+      <nav id="main-nav" class="main-nav" aria-label="主导航">
+        <a href="#collection">奶蛙图库<span>Collection</span></a>
+        <a href="#cinema">放映室<span>Cinema</span></a>
+        <a href="#about">关于与来源<span>About</span></a>
+      </nav>
+      <a class="header-instagram" href="https://www.instagram.com/unimelb.naiwaclub/" target="_blank" rel="noopener noreferrer" aria-label="Instagram：unimelb.naiwaclub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.6" cy="6.7" r=".8" fill="currentColor" stroke="none"/></svg><span>unimelb.naiwaclub</span><span aria-hidden="true">↗</span></a>
+    </div>
+  </header>
+  <main id="top">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="little-dot" aria-hidden="true"></span> WELCOME BACK. WE'VE NEVER MET.</p>
+        <h1 id="hero-title">Please<br>remain <span>round.</span></h1>
+        <p class="hero-description">欢迎来到 Naiwa Club。<br>这里收集互联网里，各种不太对劲的奶蛙。<br><span>目前没有任何进一步指示。</span></p>
+        <div class="hero-actions"><a class="button button-green" href="#collection">进入奶蛙收藏室 <span aria-hidden="true">↓</span></a><button class="text-button" id="random-naiwa">随便遇见一只 <span aria-hidden="true">↗</span></button></div>
+        <div class="hero-tally"><div><strong id="image-count">—</strong><span>张互联网奶蛙</span></div><span class="tally-divider" aria-hidden="true"></span><div><strong id="category-count">4</strong><span>个不明状态分区</span></div><span class="tally-divider" aria-hidden="true"></span><div><strong id="video-count">—</strong><span>段奶蛙影像</span></div></div>
+      </div>
+      <figure class="hero-art">
+        <div class="hero-orbit" aria-hidden="true"></div>
+        <span class="hero-stamp" aria-hidden="true">STILL<br>HERE.<span>✳</span></span>
+        <div class="hero-image-wrap"><img id="hero-image" alt="" fetchpriority="high"></div>
+        <figcaption><span class="art-label">FIG. 001 / NAIWA, JUST EXISTING.</span><a id="hero-source" target="_blank" rel="noopener noreferrer">图像来源 <span aria-hidden="true">↗</span></a></figcaption>
+      </figure>
+    </section>
+    <div class="ticker" aria-hidden="true"><div><span>NO THOUGHTS. JUST NAIWA.</span><i>✳</i><span>请保持圆润</span><i>✳</i><span>FURTHER INSTRUCTIONS WILL NOT ARRIVE.</span><i>✳</i><span>NO THOUGHTS. JUST NAIWA.</span></div></div>
+    <section id="collection" class="collection wrap" aria-labelledby="collection-title">
+      <div class="section-heading collection-heading"><div><p class="eyebrow">THE NAIWA COLLECTION / 奶蛙收集计划</p><h2 id="collection-title">每一种状态，<br>都有一只奶蛙。</h2></div><p class="section-intro">看看表情，路过名画，<br>再去一些不该出现奶蛙的地方。<br><span>点击图片放大，点击来源回到原页。</span></p></div>
+      <div class="collection-tools">
+        <div id="category-filters" class="category-filters" role="group" aria-label="按图片分区筛选"></div>
+        <label class="search-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.7" cy="10.7" r="6.3"/><path d="m15.4 15.4 4.7 4.7"/></svg><span class="sr-only">搜索奶蛙图片</span><input id="search-input" type="search" placeholder="寻找一只奶蛙…" autocomplete="off"><kbd aria-hidden="true">/</kbd></label>
+      </div>
+      <div class="results-line"><span id="results-summary" role="status" aria-live="polite"></span><button id="reset-filters" class="text-button" hidden>清除筛选 ↺</button></div>
+      <div id="gallery-sections"></div>
+      <div id="empty-state" class="empty-state" hidden><span aria-hidden="true">( •_• )</span><h3>这只奶蛙暂时不在这里。</h3><p>换个关键词，或者看看全部奶蛙。</p><button class="button button-green" id="empty-reset">回到全部图片 <span aria-hidden="true">↗</span></button></div>
+      <noscript><p class="noscript-note">请启用 JavaScript 来浏览分类图库与视频。所有素材及来源清单均在网站文件夹中。</p></noscript>
+    </section>
+    <section id="cinema" class="cinema" aria-labelledby="cinema-title"><div class="wrap">
+      <div class="section-heading cinema-heading"><div><p class="eyebrow"><span class="screen-dot" aria-hidden="true"></span> THE SCREENING ROOM / 奶蛙放映室</p><h2 id="cinema-title">请落座。<br>它们开始动了。</h2></div><p class="section-intro">从图像走进影像。<br>点开一段，进入奶蛙的短暂宇宙。<br><span>每段影像均保留收录来源。</span></p></div>
+      <div id="video-grid" class="video-grid"></div>
+      <p class="cinema-footnote"><span aria-hidden="true">↗</span> 可以在这里播放，也可以前往来源网站观看。</p>
+    </div></section>
+    <section id="about" class="about wrap" aria-labelledby="about-title">
+      <div class="about-note"><p class="eyebrow">A SMALL CORNER OF THE INTERNET</p><h2 id="about-title">关于这个<br>圆润的角落。</h2><p>Naiwa Club 的奶蛙收藏室，把散落在互联网里的图像与影像，整理成一个可以慢慢逛的地方。</p><p class="about-absurd">欢迎回来。我们从未见过。<br>这两件事可以同时成立。</p><a class="text-button about-social" href="https://www.instagram.com/unimelb.naiwaclub/" target="_blank" rel="noopener noreferrer">Instagram / unimelb.naiwaclub <span aria-hidden="true">↗</span></a></div>
+      <div class="source-note"><span class="note-index">ON SOURCES / 关于来源</span><h3>每一只奶蛙，<br>都有一条来路。</h3><p>图片卡片和影像卡片都附有来源链接；打开大图，还可以查看原始资源地址与收录说明。</p><p>分区是本站的整理方式。收录网站与原创作者分别标注，未能核实的作者信息直接标为「未核实」。</p><div id="source-links" class="source-links"></div><a class="source-manifest" href="sources.html">查看完整素材来源清单 <span aria-hidden="true">↗</span></a></div>
+    </section>
+  </main>
+  <footer class="site-footer"><div class="wrap footer-inner"><a href="#top" class="footer-wordmark">naiwa club<span aria-hidden="true">✳</span></a><p>Please remain round.<br><span>Further instructions will not arrive.</span></p><a href="#top" class="back-top" aria-label="回到顶部">↑</a></div><div class="wrap footer-bottom"><span>NAIWA CLUB / INTERNET COLLECTION</span><span>欢迎回来。没什么要紧的。</span></div></footer>
+  <dialog id="media-viewer" class="media-viewer" aria-labelledby="viewer-title"><div class="viewer-shell"><button class="viewer-close" aria-label="关闭预览">×</button><div id="viewer-media" class="viewer-media"></div><div class="viewer-details"><span id="viewer-category" class="eyebrow"></span><h2 id="viewer-title"></h2><p id="viewer-description"></p><dl><div><dt>收录来源</dt><dd><a id="viewer-source" target="_blank" rel="noopener noreferrer"></a></dd></div><div><dt>原创作者</dt><dd id="viewer-creator"></dd></div></dl><p id="viewer-note" class="viewer-note"></p><a id="viewer-original" class="button button-green" target="_blank" rel="noopener noreferrer">打开原始资源 <span aria-hidden="true">↗</span></a><div id="viewer-pagination" class="viewer-pagination"><button id="viewer-prev" aria-label="上一张图片">←</button><span id="viewer-position"></span><button id="viewer-next" aria-label="下一张图片">→</button></div></div></div></dialog>
+</body>
+</html>

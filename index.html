@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173e2c">
+  <meta name="description" content="The Naiwa Club internet collection: expressions, art remixes, outfits, unexpected appearances and a screening room. Every image and film includes its source.">
+  <title>naiwa club — Please remain round.</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="data/catalogue.js"></script>
+  <script src="i18n.js" defer></script><script defer src="app.js"></script>
+</head>
+<body>
+  <a data-i18n="skip" class="skip-link" href="#collection">Skip to the collection</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a data-i18n-aria-label="nav.homeAria" class="wordmark" href="#top" aria-label="Naiwa Club home"><span class="brand-dot" aria-hidden="true"></span>naiwa club<span class="wordmark-star" aria-hidden="true">✳</span></a>
+      <button data-i18n-aria-label="nav.open" class="menu-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="main-nav"><span></span><span></span></button>
+      <nav data-i18n-aria-label="nav.label" id="main-nav" class="main-nav" aria-label="Main navigation">
+        <a data-i18n-html="nav.collection" href="#collection">Collection<span>Images &amp; remixes</span></a>
+        <a data-i18n-html="nav.cinema" href="#cinema">Cinema<span>Moving pictures</span></a>
+        <a data-i18n-html="nav.about" href="#about">About<span>Club &amp; sources</span></a>
+      </nav>
+      <div aria-label="Language" data-i18n-aria-label="language.label" role="group" class="language-switch"><button aria-label="Switch to English" type="button" class="language-button active" data-language="en" lang="en" aria-pressed="true" data-i18n-aria-label="language.english">EN</button><button aria-label="Switch to Chinese" type="button" class="language-button" data-language="zh-CN" lang="zh-CN" aria-pressed="false" data-i18n-aria-label="language.chinese">中文</button></div><a class="header-instagram" href="https://www.instagram.com/unimelb.naiwaclub/" target="_blank" rel="noopener noreferrer" aria-label="Instagram：unimelb.naiwaclub"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.6" cy="6.7" r=".8" fill="currentColor" stroke="none" /></svg><span>unimelb.naiwaclub</span><span aria-hidden="true">↗</span></a>
+    </div>
+  </header>
+  <main id="top">
+    <section class="hero wrap" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="little-dot" aria-hidden="true"></span> <span data-i18n="hero.welcome">WELCOME BACK. WE'VE NEVER MET.</span></p>
+        <h1 data-i18n-html="hero.title" id="hero-title">Please<br>remain <span>round.</span></h1>
+        <p data-i18n-html="hero.description" class="hero-description">Welcome to Naiwa Club.<br>A little collection of very peculiar Naiwas.<br><span>Further instructions will not arrive.</span></p>
+        <div class="hero-actions"><a data-i18n-html="hero.enter" class="button button-green" href="#collection">Explore the collection <span aria-hidden="true">↓</span></a><button data-i18n-html="hero.random" class="text-button" id="random-naiwa">Meet a random Naiwa <span aria-hidden="true">↗</span></button></div>
+        <div class="hero-tally"><div><strong id="image-count">—</strong><span data-i18n="hero.countImages">internet images</span></div><span class="tally-divider" aria-hidden="true"></span><div><strong id="category-count">4</strong><span data-i18n="hero.countCategories">odd little corners</span></div><span class="tally-divider" aria-hidden="true"></span><div><strong id="video-count">—</strong><span data-i18n="hero.countVideos">short films</span></div></div>
+      </div>
+      <figure class="hero-art">
+        <div class="hero-orbit" aria-hidden="true"></div>
+        <span data-i18n-html="hero.stamp" class="hero-stamp" aria-hidden="true">STILL<br>HERE.<span>✳</span></span>
+        <div class="hero-image-wrap"><img id="hero-image" alt="" fetchpriority="high"></div>
+        <figcaption><span data-i18n="hero.figure" class="art-label">FIG. 001 / NAIWA, JUST EXISTING.</span><a data-i18n-html="hero.source" id="hero-source" target="_blank" rel="noopener noreferrer">Image source <span aria-hidden="true">↗</span></a></figcaption>
+      </figure>
+    </section>
+    <div class="ticker" aria-hidden="true"><div><span data-i18n="ticker.nothoughts">NO THOUGHTS. JUST NAIWA.</span><i>✳</i><span data-i18n="ticker.round">PLEASE REMAIN ROUND.</span><i>✳</i><span data-i18n="ticker.instructions">FURTHER INSTRUCTIONS WILL NOT ARRIVE.</span><i>✳</i><span data-i18n="ticker.nothoughts">NO THOUGHTS. JUST NAIWA.</span></div></div>
+    <section id="collection" class="collection wrap" aria-labelledby="collection-title">
+      <div class="section-heading collection-heading"><div><p data-i18n="collection.eyebrow" class="eyebrow">THE NAIWA COLLECTION</p><h2 data-i18n-html="collection.title" id="collection-title">A Naiwa for<br>every state of mind.</h2></div><p data-i18n-html="collection.intro" class="section-intro">Find a face. Wander through a painting.<br>Spot a Naiwa somewhere it probably should not be.<br><span>Click an image to explore. Follow its source to go back.</span></p></div>
+      <div class="collection-tools">
+        <div data-i18n-aria-label="collection.filtersAria" id="category-filters" class="category-filters" role="group" aria-label="Filter images by category"></div>
+        <label class="search-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10.7" cy="10.7" r="6.3" /><path d="m15.4 15.4 4.7 4.7" /></svg><span data-i18n="collection.searchLabel" class="sr-only">Search Naiwa images</span><input data-i18n-placeholder="collection.searchPlaceholder" id="search-input" type="search" placeholder="Find a Naiwa…" autocomplete="off"><kbd aria-hidden="true">/</kbd></label>
+      </div>
+      <div class="results-line"><span id="results-summary" role="status" aria-live="polite"></span><button data-i18n="collection.reset" id="reset-filters" class="text-button" hidden>Clear filters ↺</button></div>
+      <div id="gallery-sections"></div>
+      <div id="empty-state" class="empty-state" hidden><span aria-hidden="true">( •_• )</span><h3 data-i18n="collection.emptyTitle">This Naiwa is somewhere else.</h3><p data-i18n="collection.emptyBody">Try another word, or take a look at the whole collection.</p><button data-i18n-html="collection.emptyReset" class="button button-green" id="empty-reset">See all images <span aria-hidden="true">↗</span></button></div>
+      <noscript><p data-i18n="collection.noscript" class="noscript-note">Enable JavaScript to browse the collection and films. All media and source lists are also included in the website folder.</p></noscript>
+    </section>
+    <section id="cinema" class="cinema" aria-labelledby="cinema-title"><div class="wrap">
+      <div class="section-heading cinema-heading"><div><p data-i18n-html="cinema.eyebrow" class="eyebrow"><span class="screen-dot" aria-hidden="true"></span> THE SCREENING ROOM</p><h2 data-i18n-html="cinema.title" id="cinema-title">Take a seat.<br>They are moving now.</h2></div><p data-i18n-html="cinema.intro" class="section-intro">From still images to moving pictures.<br>Step into a small Naiwa universe.<br><span>Every film includes its collected source.</span></p></div>
+      <div id="video-grid" class="video-grid"></div>
+      <p data-i18n-html="cinema.footnote" class="cinema-footnote"><span aria-hidden="true">↗</span> Watch here, or visit the source website.</p>
+    </div></section>
+    <section id="about" class="about wrap" aria-labelledby="about-title">
+      <div class="about-note"><p data-i18n="about.eyebrow" class="eyebrow">A SMALL CORNER OF THE INTERNET</p><h2 data-i18n-html="about.title" id="about-title">About this<br>very round corner.</h2><p data-i18n="about.body">The Naiwa Club collection gathers images and films from across the internet into a little corner worth wandering through.</p><p data-i18n-html="about.absurd" class="about-absurd">Welcome back. We've never met.<br>Both things can be true.</p><a class="text-button about-social" href="https://www.instagram.com/unimelb.naiwaclub/" target="_blank" rel="noopener noreferrer">Instagram / unimelb.naiwaclub <span aria-hidden="true">↗</span></a></div>
+      <div class="source-note"><span data-i18n="sources.eyebrow" class="note-index">ON SOURCES</span><h3 data-i18n-html="sources.noteHeading">Every Naiwa<br>has a way back.</h3><p data-i18n="sources.noteBody">Every image and film has a source link. Open an image or film to find the original asset address and collection notes.</p><p data-i18n="sources.noteAttribution">The categories are curated here. Collected sources and original creators are labelled separately; creator information we could not verify is marked “Unverified”.</p><div id="source-links" class="source-links"></div><a data-language-link="sources.html" data-i18n-html="sources.complete" class="source-manifest" href="sources.html?lang=en">View the complete source list <span aria-hidden="true">↗</span></a></div>
+    </section>
+  </main>
+  <footer class="site-footer"><div class="wrap footer-inner"><a href="#top" class="footer-wordmark">naiwa club<span aria-hidden="true">✳</span></a><p data-i18n-html="footer.copy">Please remain round.<br><span>Further instructions will not arrive.</span></p><a data-i18n-aria-label="backTop" href="#top" class="back-top" aria-label="Back to top">↑</a></div><div class="wrap footer-bottom"><span data-i18n="footer.bottomTag">NAIWA CLUB / INTERNET COLLECTION</span><span data-i18n="footer.bottomNote">Welcome back. Nothing urgent.</span></div></footer>
+  <dialog id="media-viewer" class="media-viewer" aria-labelledby="viewer-title"><div class="viewer-shell"><button data-i18n-aria-label="viewer.close" class="viewer-close" aria-label="Close preview">×</button><div id="viewer-media" class="viewer-media"></div><div class="viewer-details"><span id="viewer-category" class="eyebrow"></span><h2 id="viewer-title"></h2><p id="viewer-description"></p><dl><div><dt data-i18n="viewer.sourceLabel">Collected source</dt><dd><a id="viewer-source" target="_blank" rel="noopener noreferrer"></a></dd></div><div><dt data-i18n="viewer.creatorLabel">Original creator</dt><dd id="viewer-creator"></dd></div></dl><p id="viewer-note" class="viewer-note"></p><a data-i18n-html="viewer.original" id="viewer-original" class="button button-green" target="_blank" rel="noopener noreferrer">Open original asset <span aria-hidden="true">↗</span></a><div id="viewer-pagination" class="viewer-pagination"><button data-i18n-aria-label="viewer.prev" id="viewer-prev" aria-label="Previous image">←</button><span id="viewer-position"></span><button data-i18n-aria-label="viewer.next" id="viewer-next" aria-label="Next image">→</button></div></div></div></dialog>
+</body>
+</html>
