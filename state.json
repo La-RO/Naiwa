@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "paused": true,
-  "start_date": "",
+  "paused": false,
+  "start_date": "2026-10-23",
   "assets": {
     "repo:expressions-l-18": {
       "id": "repo:expressions-l-18",
