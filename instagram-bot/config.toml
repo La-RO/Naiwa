@@ -15,8 +15,16 @@ reuse_after_days = 30
 [discovery]
 enabled = true
 hour = 9
-queries = ["奶蛙 视频", "奶蛙 表情包", "Naiwa 奶蛙 日常"]
+queries = ["奶蛙 视频 mp4", "Naiwa 奶蛙 视频", "奶蛙 短视频"]
 max_results = 6
+only_when_story_empty = true
+# Operator requested automatic web publishing, without individual review.
+# This records the publishing decision; third-party reuse rights stay unverified.
+auto_publish = true
+operator_policy = "Operator requested automatic web video publication without individual review on 2026-10-23; reuse rights unverified."
+keywords = ["奶蛙", "naiwa"]
+max_auto_videos_per_day = 1
+max_candidate_checks_per_day = 6
 
 [ai]
 enabled = false

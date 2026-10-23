@@ -1,4 +1,5 @@
 import ipaddress
+from contextlib import contextmanager
 from pathlib import Path
 import socket
 from urllib.parse import urljoin, urlparse
@@ -38,10 +39,22 @@ def validate_public_url(url):
         raise ValueError("Private/local network URLs are forbidden")
 
 
+@contextmanager
+def public_stream(client, url):
+    request = client.build_request("GET", url, timeout=90)
+    request.headers.pop("authorization", None)
+    request.headers.pop("cookie", None)
+    response = client.send(request, auth=None, stream=True, follow_redirects=False)
+    try:
+        yield response
+    finally:
+        response.close()
+
+
 def download(client, url, target: Path, max_bytes=80_000_000):
     for _ in range(5):
         validate_public_url(url)
-        with client.stream("GET", url, follow_redirects=False, timeout=90) as response:
+        with public_stream(client, url) as response:
             if response.status_code in (301, 302, 303, 307, 308):
                 url = urljoin(url, response.headers["location"])
                 continue

@@ -119,7 +119,8 @@ def discover(config, store, client, now):
                 continue
             store.data["assets"][identity] = {"id": identity, "kind": "candidate", "title": result.get("title", "Untitled")[:200],
                 "url": "", "source_url": url, "local_path": "", "sha256": "", "rights": "pending", "evidence": "",
-                "credit": "", "ai_generated": False, "reviewed": False, "added_at": now.isoformat()}
+                "credit": "", "ai_generated": False, "reviewed": False, "added_at": now.isoformat(),
+                "search_excerpt": str(result.get("content", ""))[:1500]}
             record["added"] += 1
         store.save()
     return f"Search candidates added today: {record['added']}"

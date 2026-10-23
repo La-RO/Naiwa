@@ -7,14 +7,15 @@
 - 每天 12:00（Australia/Sydney）发布一段奶蛙 Story 视频。
 - 从首次恢复日期开始，每 3 个本地日历日的 18:00 发布一条 Reel 或图片 Post。有可用素材时交替选择视频、图片。
 - 导入本仓库 `data/images.json`、`data/videos.json`，读取本地素材。现有清单为 24 张图片、3 段视频。
-- 每天最多 3 次 Tavily 搜索，搜索结果进入候选库；人工确认内容和转载授权后，才进入自动发布池。
+- Story 没有可用视频时，通过 Tavily 全网搜索奶蛙相关内容，每天最多 3 个搜索词。当前按运营者要求，自动检查最多 6 个网页、下载最多 1 段公开 MP4；成功后加入发布池，不再逐条人工审批。
+- 自动下载的视频记录 `rights=unverified` 和运营者发布策略，保留来源、文件哈希与下载结果；这代表运营者选择自动发布，不代表系统已经核实第三方转载许可。
 - 可选 AI 虚构日常视频：Gemini Interactions API，支持带角色参考图生成 9:16 视频，默认每天最多请求 1 次。
 - WEBP/PNG 转成 1080×1350 JPEG；视频转成 1080×1920 H.264/AAC。Story 最长 15 秒，Reels 最长 60 秒；较长视频取开头片段。
 - 所有媒体保留来源署名；AI 视频在画面中固定标注 `AI-GENERATED / FICTIONAL DAILY LIFE`，Feed 文案也明确说明。
 - 内容哈希去重、30 天重复使用冷却、容器状态检查、失败重试上限、发布结果不确定时停止重发。
 - Actions 每次运行提供中文 Summary，显示待审核素材、排期和最近发布记录。
 
-**初始为暂停，现有 27 项素材全部为待授权。** 原网站清单明确表示作者和转载授权未核实；“来自我们的网站”不能自动等同于素材归我们所有。机器人不会替你声称已取得授权。
+**初始为暂停。** 导入器仍将新增网站清单设为待审核；现有 27 项素材的许可确认通过独立状态分支的运营者审核记录保存。网络自动发布通过下方的明确配置控制，不把未知授权写成“已获许可”。AI 生成当前关闭。
 
 ## 在 GitHub 部署
 
@@ -101,13 +102,41 @@ helper 会验证 15 分钟有效的 state，并将 token 写成加密形式。�
 
 `rights` 可选 `owned`、`permission`、`licensed`、`ai`。AI 素材只能用 `ai`；`evidence` 保存不敏感的授权记录编号或许可证链接，`credit` 保存发布时显示的署名。原始授权信件和私人信息不要放在公开状态分支。
 
+## 缺视频时自动网络补片
+
+当前默认配置按运营者 2026-10-23 的指示启用自动网络补片，AI 保持关闭：
+
+```toml
+[discovery]
+enabled = true
+hour = 9
+only_when_story_empty = true
+auto_publish = true
+operator_policy = "Operator requested automatic web video publication without individual review on 2026-10-23; reuse rights unverified."
+keywords = ["奶蛙", "naiwa"]
+max_results = 6
+max_auto_videos_per_day = 1
+max_candidate_checks_per_day = 6
+queries = ["奶蛙 视频 mp4", "Naiwa 奶蛙 视频", "奶蛙 短视频"]
+```
+
+在 GitHub Secrets 添加 `TAVILY_API_KEY`，即可使用搜索服务。无需 `GEMINI_API_KEY`。已有可用 Story 视频时不自动调用搜索；库存为空时，在搜索时段之后收集候选，并在当天 Story 时段尝试提取和下载视频。暂停时不会自动搜索或下载。
+
+自动流程支持公开 MP4 直链，以及静态网页的 `<video>`、Open Graph 和 JSON-LD 视频地址。只依据标题和搜索摘要筛选奶蛙相关性，不进行 AI 视觉识别。不能保证每个搜索结果都能下载；需要登录、播放器脚本或不可直接取出媒体的网站会跳过。没有可用结果时记录 `blocked`，不会发布一个网页链接冒充视频。
+
+下载上限为 80 MB，验证 MP4、可读时长及前 60 秒的解码，再保存文件。原始视频须为 3 秒到 10 分钟，发布时仍裁成 Story 最长 15 秒、Reels 最长 60 秒。重复哈希不入库；临时文件放在 scratch，不提交到公开媒体分支。每日搜索、网页检查和成功入库计数先写状态，重复小时运行不会无限下载。
+
+自动素材的 `rights=unverified`、`approval_mode=automatic_operator_policy`、`evidence` 会明确保存发布策略；`reviewed=true` 在此表示流程已自动接纳，不表示经过人工内容或版权审核。关闭 `auto_publish` 停止新的自动入库；已接纳的素材可用 `reject` 撤销，或先 `pause` 停止发布。
+
+“AI 生成”本身不构成全网素材可以自由转载的证明。相关解释见 [IP Australia 的 AI 与知识产权说明](https://ipfirstresponse.ipaustralia.gov.au/options/considerations-when-using-artificial-intelligence-create-ip-0)。此流程不会自动作出法律许可判断。
+
 添加网络素材：
 
 ```json
 {"kind":"video","title":"奶蛙的下午","url":"https://your-public-media.example/naiwa.mp4","source_url":"https://creator.example/original-post","ai_generated":false}
 ```
 
-把示例域名换成真正的公开直链。普通视频网页、Bilibili/TikTok/Instagram 页面并不是媒体直链。搜索只帮助发现内容，不能自动授予下载或转载权限；获得作者许可并拿到可用文件后再 `add` 和 `approve`。工具不绕过登录、付费墙、防盗链或 DRM。公开 URL 不得携带账号密码，下载限制为 80 MB；发布时会重新校验内容哈希，链接内容变化就停止。
+把示例域名换成真正的公开直链。普通视频网页并不一定包含可直接取出的 MP4。手动 `add` 的素材继续走 `approve`；自动入库采用上方独立的运营者策略。工具不绕过登录、付费墙或 DRM。公开 URL 不得携带账号密码，下载限制为 80 MB；自动入库会保存审核时下载的文件，发布前重新校验哈希。
 
 拒绝素材：
 

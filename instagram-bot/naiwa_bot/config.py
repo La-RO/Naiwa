@@ -29,6 +29,17 @@ class Config:
             raise ValueError("AI daily request limit must be 1..3")
         if not 1 <= cfg.discovery["max_results"] <= 10 or len(cfg.discovery["queries"]) > 3:
             raise ValueError("Discovery is limited to three queries and ten results per query")
+        if type(cfg.discovery.get("auto_publish", False)) is not bool:
+            raise ValueError("Discovery auto_publish must be a boolean")
+        if cfg.discovery.get("auto_publish", False) and not cfg.discovery.get("operator_policy", "").strip():
+            raise ValueError("Automatic publication requires an operator_policy record")
+        if not 1 <= cfg.discovery.get("max_auto_videos_per_day", 1) <= 3:
+            raise ValueError("Automatic web imports must be limited to 1..3 videos per day")
+        if not 1 <= cfg.discovery.get("max_candidate_checks_per_day", 6) <= 18:
+            raise ValueError("Candidate checks must be limited to 1..18 per day")
+        keywords = cfg.discovery.get("keywords", ["奶蛙", "naiwa"])
+        if not keywords or any(not isinstance(word, str) or not word.strip() for word in keywords):
+            raise ValueError("Discovery keywords must contain nonempty strings")
         return cfg
 
     @property

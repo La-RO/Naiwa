@@ -7,6 +7,14 @@ from urllib.parse import urlparse
 from .config import inside
 
 
+PUBLISHABLE_RIGHTS = ("owned", "permission", "licensed", "ai", "unverified")
+
+
+def publishable(asset):
+    return (asset.get("reviewed") and asset.get("rights") in PUBLISHABLE_RIGHTS
+            and (asset["rights"] != "unverified" or asset.get("approval_mode") == "automatic_operator_policy"))
+
+
 def asset_id(prefix: str, value: str):
     return prefix + ":" + hashlib.sha256(value.encode()).hexdigest()[:20]
 
@@ -84,7 +92,7 @@ def eligible(store, channel, now, reuse_days):
     for asset in store.data["assets"].values():
         if channel == "story" and asset["kind"] != "video":
             continue
-        if asset["kind"] not in ("image", "video") or not asset["reviewed"] or asset["rights"] not in ("owned", "permission", "licensed", "ai"):
+        if asset["kind"] not in ("image", "video") or not publishable(asset):
             continue
         if not asset["evidence"] or not asset["credit"] or asset["id"] in reserved_ids:
             continue

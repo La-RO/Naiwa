@@ -1,7 +1,8 @@
 from datetime import date, datetime, timedelta
 import time
 
-from .catalogue import eligible, import_catalogue
+from .catalogue import eligible, import_catalogue, publishable
+from .auto_video import replenish_from_web
 from .media import prepare
 from .providers import Instagram, discover, generate_video
 from .network import RemoteError
@@ -70,6 +71,10 @@ def publish_slot(config, store, client, ig, slot, channel, now, scratch, prepare
     if not job or job["status"] == "blocked":
         choices = eligible(store, channel, now, config.schedule["reuse_after_days"])
         if not choices and channel == "story":
+            if config.discovery.get("auto_publish", False):
+                replenish_from_web(config, store, client, now, scratch / "discovery")
+                choices = eligible(store, channel, now, config.schedule["reuse_after_days"])
+        if not choices and channel == "story":
             generate_video(config, store, client, now)
             choices = eligible(store, channel, now, config.schedule["reuse_after_days"])
         if not choices:
@@ -82,7 +87,7 @@ def publish_slot(config, store, client, ig, slot, channel, now, scratch, prepare
         store.data["jobs"][slot] = job
         store.save()
     asset = store.data["assets"][job["asset_id"]]
-    if not asset["reviewed"] or asset["rights"] not in ("owned", "permission", "licensed", "ai"):
+    if not publishable(asset):
         job.update(status="blocked", error="Asset authorization was revoked")
         store.save()
         return "blocked"
@@ -152,7 +157,9 @@ def run(config, store, client, now, scratch, ig_factory=Instagram):
     ig.verify(now)
     results = {}
     local = now.astimezone(config.timezone)
-    if config.discovery["enabled"] and local.hour >= config.discovery["hour"]:
+    has_story_stock = bool(eligible(store, "story", now, config.schedule["reuse_after_days"]))
+    if (config.discovery["enabled"] and local.hour >= config.discovery["hour"]
+            and (not config.discovery.get("only_when_story_empty", False) or not has_story_stock)):
         try:
             results["discovery"] = discover(config, store, client, now)
         except Exception as error:

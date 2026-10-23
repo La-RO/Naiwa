@@ -35,6 +35,28 @@ def overlay(size, asset):
     return layer
 
 
+def validate_web_video(source):
+    """Validate the downloaded MP4 and the frames that can be published."""
+    if not source.stat().st_size or source.stat().st_size > 80_000_000:
+        raise ValueError("Web video is empty or exceeds 80 MB")
+    with source.open("rb") as stream:
+        if stream.read(12)[4:8] != b"ftyp":
+            raise ValueError("Web video is not an MP4 file")
+    ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+    input_limits = ["-protocol_whitelist", "file,pipe", "-max_pixels", "40000000", "-threads", "2"]
+    probe = subprocess.run([ffmpeg, "-hide_banner", "-max_alloc", "268435456", *input_limits,
+                            "-format_whitelist", "mov", "-i", str(source)], capture_output=True, timeout=30)
+    match = re.search(rb"Duration: (\d+):(\d+):(\d+(?:\.\d+)?)", probe.stderr)
+    duration = sum(float(value) * multiplier for value, multiplier in zip(match.groups(), (3600, 60, 1))) if match else 0
+    if not 3 <= duration <= 600 or b"Video:" not in probe.stderr:
+        raise ValueError("Web video must contain a readable 3..600 second video stream")
+    decoded = subprocess.run([ffmpeg, "-v", "error", "-xerror", "-max_alloc", "268435456", *input_limits,
+                              "-format_whitelist", "mov", "-i", str(source),
+                              "-t", "60", "-map", "0:v:0", "-f", "null", "-"], capture_output=True, timeout=180)
+    if decoded.returncode:
+        raise ValueError("Web video frames could not be decoded")
+
+
 def prepare(config, store, client, asset, channel, scratch):
     scratch.mkdir(parents=True, exist_ok=True)
     if asset.get("state_path"):
@@ -64,7 +86,11 @@ def prepare(config, store, client, asset, channel, scratch):
                 canvas.save(target, "JPEG", quality=92, optimize=True)
         else:
             ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
-            probe = subprocess.run([ffmpeg, "-hide_banner", "-i", str(source)], capture_output=True, timeout=30)
+            input_limits = ["-protocol_whitelist", "file,pipe", "-max_pixels", "40000000", "-threads", "2"]
+            if asset.get("approval_mode") == "automatic_operator_policy":
+                input_limits += ["-format_whitelist", "mov"]
+            probe = subprocess.run([ffmpeg, "-hide_banner", "-max_alloc", "268435456", *input_limits,
+                                    "-i", str(source)], capture_output=True, timeout=30)
             match = re.search(rb"Duration: (\d+):(\d+):(\d+(?:\.\d+)?)", probe.stderr)
             duration = sum(float(value) * multiplier for value, multiplier in zip(match.groups(), (3600, 60, 1))) if match else 0
             if duration < 3:
@@ -73,7 +99,8 @@ def prepare(config, store, client, asset, channel, scratch):
             overlay((1080, 1920), asset).save(stamp)
             temporary = target.with_suffix(".tmp.mp4")
             filters = "[0:v]scale=1080:1920:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=0xfff9df,setsar=1[v];[v][1:v]overlay=0:0[out]"
-            command = [ffmpeg, "-y", "-hide_banner", "-loglevel", "error", "-i", str(source), "-i", str(stamp),
+            command = [ffmpeg, "-y", "-hide_banner", "-loglevel", "error", "-max_alloc", "268435456",
+                *input_limits, "-i", str(source), "-i", str(stamp),
                 "-filter_complex", filters, "-map", "[out]", "-map", "0:a?", "-t", str(min(duration, 15 if channel == "story" else 60)),
                 "-r", "30", "-c:v", "libx264", "-preset", "fast", "-crf", "23", "-pix_fmt", "yuv420p",
                 "-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart", str(temporary)]

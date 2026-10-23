@@ -40,7 +40,9 @@ def summary(config, store, now, result):
     text += ["", "## 最近发布记录", "", "| 时段 ID | 状态 | 素材 ID | Instagram 媒体 ID |", "| --- | --- | --- | --- |"]
     for slot, job in sorted(store.data["jobs"].items(), reverse=True)[:30]:
         text.append("| " + " | ".join(markdown(v) for v in (slot, job["status"], job.get("asset_id", ""), job.get("media_id", ""))) + " |")
-    text += ["", "网络搜索结果仅供审核。pending 素材不会自动发布。AI 内容在画面中标注为虚构日常。",
+    automatic = config.discovery.get("auto_publish", False)
+    text += ["", "网络自动发布：" + ("已开启；转载权利未核实，依据运营者策略发布。" if automatic else "关闭；搜索结果需审核。"),
+             "pending 素材不会自动发布。AI 内容在画面中标注为虚构日常。",
              "GitHub 定时任务可能延迟；机器人仅执行当天时段，不补发过去日期。", ""]
     return "\n".join(text)
 
