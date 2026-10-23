@@ -63,6 +63,8 @@ class Instagram:
                 "encrypted_token": self.cipher.encrypt(self.token.encode()).decode(), "refreshed_at": now.isoformat()}
             self.store.save()
 
+        return {"user_id": user_id, "username": info["username"], "account_type": info["account_type"]}
+
     def create(self, job, asset, media_url):
         payload = {"video_url" if asset["kind"] == "video" else "image_url": media_url}
         if job["channel"] == "story":

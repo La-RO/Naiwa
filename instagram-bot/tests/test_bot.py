@@ -18,6 +18,7 @@ from naiwa_bot.media import overlay, prepare
 from naiwa_bot.network import download, validate_public_url
 from naiwa_bot.providers import Instagram, caption, discover, generate_video, oauth_exchange
 from naiwa_bot.state import Store
+from naiwa_bot.__main__ import execute
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -289,6 +290,53 @@ def test_wrong_account_is_rejected(cfg, store, monkeypatch):
     client = httpx.Client(transport=httpx.MockTransport(lambda req: httpx.Response(200, json={"user_id":"123", "username":"other", "account_type":"BUSINESS"})))
     with pytest.raises(ValueError, match="different username"):
         Instagram(cfg, store, client).verify(NOW)
+
+
+def test_check_connects_while_paused_without_publishing(cfg, store, monkeypatch, tmp_path):
+    key = Fernet.generate_key()
+    monkeypatch.setenv("BOT_ENCRYPTION_KEY", key.decode())
+    monkeypatch.setenv("IG_ACCESS_TOKEN", "check-secret-token")
+    monkeypatch.setenv("IG_USER_ID", "123")
+    store.data["paused"] = True
+    before = copy.deepcopy(store.data)
+    requests = []
+    def handler(request):
+        requests.append(request)
+        assert request.method == "GET" and request.url.path.endswith("/me")
+        return httpx.Response(200, json={"user_id": "123", "username": "unimelb.naiwaclub", "account_type": "BUSINESS"})
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        result = execute("check", {}, cfg, store, client, NOW, tmp_path / "scratch")
+    assert result == {"connected": True, "account": {"user_id": "123", "username": "unimelb.naiwaclub", "account_type": "BUSINESS"},
+                      "paused": True, "publishing_tested": False}
+    assert len(requests) == 1
+    assert not (tmp_path / "scratch").exists()
+    for field in before:
+        if field != "account":
+            assert store.data[field] == before[field]
+    assert "check-secret-token" not in json.dumps(result) + json.dumps(store.data)
+    assert Fernet(key).decrypt(store.data["account"]["encrypted_token"].encode()).decode() == "check-secret-token"
+
+
+@pytest.mark.parametrize("info,error", [
+    ({"user_id": "123", "username": "other", "account_type": "BUSINESS"}, "different username"),
+    ({"user_id": "456", "username": "unimelb.naiwaclub", "account_type": "BUSINESS"}, "IG_USER_ID"),
+    ({"user_id": "123", "username": "unimelb.naiwaclub", "account_type": "MEDIA_CREATOR"}, "Business account"),
+])
+def test_check_rejects_account_mismatch_without_saving(cfg, store, monkeypatch, tmp_path, info, error):
+    monkeypatch.setenv("BOT_ENCRYPTION_KEY", Fernet.generate_key().decode())
+    monkeypatch.setenv("IG_ACCESS_TOKEN", "check-secret-token")
+    monkeypatch.setenv("IG_USER_ID", "123")
+    store.data["paused"] = True
+    before = copy.deepcopy(store.data)
+    requests = []
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, json=info)
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(ValueError, match=error):
+            execute("check", {}, cfg, store, client, NOW, tmp_path / "scratch")
+    assert len(requests) == 1 and requests[0].method == "GET"
+    assert store.data == before and store.snapshots == []
 
 
 def test_discovery_calls_once_per_query_per_day(cfg, store, monkeypatch):

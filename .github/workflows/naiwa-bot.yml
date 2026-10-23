@@ -6,12 +6,13 @@ on:
   workflow_dispatch:
     inputs:
       command:
-        description: '机器人操作（首次先 import，再 preview）'
+        description: '机器人操作（首次先 import、审核素材，再 check）'
         type: choice
         default: preview
         options:
           - preview
           - status
+          - check
           - import
           - add
           - approve

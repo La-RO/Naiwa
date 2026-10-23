@@ -23,7 +23,7 @@
 3. 进入 **Settings → Secrets and variables → Actions → New repository secret**，配置下表。密钥不要放进 GitHub 文件、Issue、Actions 参数或聊天里。
 4. 进入 **Actions → Naiwa Bot Tests**，确认测试通过。
 5. 进入 **Actions → Naiwa Instagram Bot → Run workflow**，选择 `import`。在本次 Summary 里查看素材 ID。
-6. 用 `approve` 审核已有授权的素材，再运行 `preview`。没有授权素材时，预览会显示 `no_approved_material`。
+6. 用 `approve` 审核已有授权的素材，再运行 `check` 检查用户名、账号类型及 ID。该操作不会创建媒体、发帖、搜索或生成 AI 视频，也不会改变暂停状态。成功只说明账号连接及基本读取有效，发布权限和媒体接收仍需首次真实发布验证。随后运行 `preview`；没有授权素材时，预览会显示 `no_approved_material`。
 7. 确认账号、素材和排期后运行 `resume`。这只启用机器人，不立即发帖。下次定时任务或手动 `run` 才执行当天已到时间的时段。
 
 | Secret | 是否必需 | 用途 |
@@ -82,6 +82,7 @@ helper 会验证 15 分钟有效的 state，并将 token 写成加密形式。�
 | `import` | 导入网站素材，全部先标记待审核，重复执行不会重复添加 |
 | `preview` | 预览当天已到时间的时段和可选素材；不会发帖、占用时段或调用搜索/AI |
 | `status` | 查看运行状态、素材数和发布记录 |
+| `check` | 核对 Instagram 账号连接并加密保存 token；保持暂停状态，不创建或发布媒体 |
 | `discover` | 执行当天还没调用过的搜索词，结果只作为来源候选 |
 | `add` | 添加可直接下载的公开图片/视频 URL，并锁定审核时的内容哈希 |
 | `approve` | 确认版权依据、署名和内容审核，加入发布池 |

@@ -15,11 +15,11 @@ from .catalogue import add_asset, approve, import_catalogue
 from .config import Config
 from .engine import due_slots, preview, run, safe_error
 from .network import checked_json, download
-from .providers import discover, oauth_exchange, oauth_url
+from .providers import Instagram, discover, oauth_exchange, oauth_url
 from .state import GitStore, Store
 
 
-COMMANDS = ("preview", "status", "run", "pause", "resume", "import", "discover", "add", "approve", "reject", "retry", "reconcile", "abandon", "oauth-url", "oauth-exchange")
+COMMANDS = ("preview", "status", "check", "run", "pause", "resume", "import", "discover", "add", "approve", "reject", "retry", "reconcile", "abandon", "oauth-url", "oauth-exchange")
 
 
 def markdown(value):
@@ -51,6 +51,9 @@ def execute(command, payload, config, store, client, now, scratch):
             import_catalogue(store, config.root)  # memory only, no save/network/paid calls
             return preview(config, store, now)
         return {"paused": store.data["paused"], "assets": len(store.data["assets"]), "jobs": len(store.data["jobs"])}
+    if command == "check":
+        account = Instagram(config, store, client).verify(now)
+        return {"connected": True, "account": account, "paused": store.data["paused"], "publishing_tested": False}
     if command == "run":
         if not isinstance(store, GitStore):
             raise ValueError("Live publishing is available only with --github-state")
