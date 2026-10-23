@@ -466,6 +466,11 @@
   "jobs": {},
   "discovery": {},
   "ai_requests": {},
-  "account": null,
+  "account": {
+    "user_id": "17841422353807221",
+    "username": "unimelb.naiwaclub",
+    "encrypted_token": "gAAAAABq2xBopEPRzD6D_q2HfdvBm1b2PjvyZgivHhOkhxOcn99TFwPaWavwl1l2Saul2wqPnSpl76en9aJ2wWAaQNOZXXTc6pn6EW58t6P5MTlIrNFIMFl-nv7ATijjOuKr7TAzaLKOUdOsWk7M-_B-OtL56oamsRl6KeLU3_Tn_BY69ozHIhCsZKgMeUkTFn-LrT3H7XyLSpo9jyxpl6rIl1hQXhz4-r5hWPiI-3CZ6hfImEGpkuW8DUtROZ-OTBmu9t3L21iI036viZ6DGkFQswtDeR0K9teYxdTaVERUGqaJqZnfBlLwOwch_YZkcUv0krLf_MyL",
+    "refreshed_at": "2026-10-23T07:44:39.880707+00:00"
+  },
   "oauth": null
 }
