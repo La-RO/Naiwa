@@ -481,10 +481,10 @@
     },
     "feed:2026-10-23": {
       "channel": "feed",
-      "status": "waiting",
+      "status": "publishing",
       "asset_id": "repo:wallpaper-tunnel",
       "kind": "video",
-      "attempts": 0,
+      "attempts": 1,
       "created_at": "2026-10-23T07:48:20.859088+00:00",
       "prepared_path": "media/88690d0d1f0f4e619195c8a32e06f202ac6fe69e4ee6621833e944808d961301.mp4",
       "sha256": "077182db17eb197e98534966547af770ee4ec20e7141ad8dfd8aac30798ada3f",
