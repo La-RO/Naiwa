@@ -1,0 +1,32 @@
+[instagram]
+username = "unimelb.naiwaclub"
+# Use a supported version enabled for your Meta app.
+api_version = "v24.0"
+
+[schedule]
+timezone = "Australia/Sydney"
+story_hour = 12
+feed_hour = 18
+feed_every_days = 3
+# Empty: first resume date becomes day 1. ISO local calendar date otherwise.
+start_date = ""
+reuse_after_days = 30
+
+[discovery]
+enabled = true
+hour = 9
+queries = ["奶蛙 视频", "奶蛙 表情包", "Naiwa 奶蛙 日常"]
+max_results = 6
+
+[ai]
+enabled = false
+model = "gemini-omni-1.1-flash"
+# A licensed reference image, relative to the repository root.
+reference_image = ""
+character_description = "Naiwa, a round yellow cartoon mascot with green eyes, a small head and a large soft belly"
+# Explicitly confirm permission to use the character/reference before enabling AI.
+character_rights_confirmed = false
+# Generated videos enter review unless this is explicitly enabled.
+auto_approve = false
+max_requests_per_day = 1
+daily_scenes = ["making breakfast in a cozy kitchen", "taking a walk in a sunny park", "reading in a quiet library", "watering small plants on a balcony", "drinking tea while watching the rain", "drawing in a notebook", "stretching after a nap"]

@@ -1,5 +1,9 @@
 # Naiwa Club 本地官网
 
+## Instagram 机器人
+
+仓库新增了由 GitHub Actions 控制的奶蛙 Instagram 机器人：每日 Story、每三天 Reel 或图片 Post、素材授权审核、网络搜索候选和可选 AI 虚构日常视频。部署与操作见 [instagram-bot/README.md](instagram-bot/README.md)。初始为暂停，完成账号配置和素材审核后在 Actions 中启用。
+
 一个展示互联网奶蛙图片和视频的静态网站。包含 4 个图片分区、图片搜索、分类筛选、大图预览、独立视频放映室和逐项素材来源。
 
 ## 语言切换

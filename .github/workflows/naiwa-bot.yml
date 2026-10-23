@@ -1,0 +1,71 @@
+name: Naiwa Instagram Bot
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+    inputs:
+      command:
+        description: '机器人操作（首次先 import，再 preview）'
+        type: choice
+        default: preview
+        options:
+          - preview
+          - status
+          - import
+          - add
+          - approve
+          - reject
+          - discover
+          - resume
+          - pause
+          - run
+          - retry
+          - reconcile
+          - abandon
+      payload:
+        description: '操作参数 JSON，示例见 instagram-bot/README.md'
+        type: string
+        default: '{}'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: naiwa-instagram-bot
+  cancel-in-progress: false
+
+jobs:
+  bot:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: instagram-bot/requirements.txt
+      - name: Install bot dependencies
+        run: python -m pip install -r instagram-bot/requirements.txt
+      - name: Execute selected command
+        working-directory: instagram-bot
+        env:
+          BOT_COMMAND: ${{ inputs.command || 'run' }}
+          BOT_PAYLOAD: ${{ inputs.payload || '{}' }}
+          GITHUB_TOKEN: ${{ github.token }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          BOT_ENCRYPTION_KEY: ${{ secrets.BOT_ENCRYPTION_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python -m naiwa_bot --github-state --state "$RUNNER_TEMP/naiwa-state" --scratch "$RUNNER_TEMP/naiwa-scratch"
+      - name: Attach operation summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: naiwa-operation-summary
+          path: instagram-bot/summary.md
+          if-no-files-found: ignore
+          retention-days: 14

@@ -1,0 +1,6 @@
+httpx==0.28.1
+cryptography==50.0.2
+Pillow==13.0.0
+python-dotenv==1.2.4
+tzdata==2026.5
+imageio-ffmpeg==0.6.0
