@@ -466,11 +466,13 @@
   "jobs": {
     "story:2026-10-23": {
       "channel": "story",
-      "status": "preparing",
+      "status": "ready",
       "asset_id": "repo:sanctuary-tour",
       "kind": "video",
       "attempts": 1,
-      "created_at": "2026-10-23T07:48:20.859088+00:00"
+      "created_at": "2026-10-23T07:48:20.859088+00:00",
+      "prepared_path": "media/75fcfd5ced38b44c9c474f96e52299c955e6c4d5ed3e7467aa764e2f59754617.mp4",
+      "sha256": "a562b12e653518ac8c33f6d9eacfe60648120efa9548154aa83860ada4c44b88"
     }
   },
   "discovery": {},
