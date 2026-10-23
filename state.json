@@ -463,7 +463,16 @@
       "added_at": "2026-10-23T05:45:03.893974+00:00"
     }
   },
-  "jobs": {},
+  "jobs": {
+    "story:2026-10-23": {
+      "channel": "story",
+      "status": "planned",
+      "asset_id": "repo:sanctuary-tour",
+      "kind": "video",
+      "attempts": 0,
+      "created_at": "2026-10-23T07:48:20.859088+00:00"
+    }
+  },
   "discovery": {},
   "ai_requests": {},
   "account": {
