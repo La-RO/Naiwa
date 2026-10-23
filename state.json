@@ -481,7 +481,7 @@
     },
     "feed:2026-10-23": {
       "channel": "feed",
-      "status": "publishing",
+      "status": "published",
       "asset_id": "repo:wallpaper-tunnel",
       "kind": "video",
       "attempts": 1,
@@ -489,7 +489,10 @@
       "prepared_path": "media/88690d0d1f0f4e619195c8a32e06f202ac6fe69e4ee6621833e944808d961301.mp4",
       "sha256": "077182db17eb197e98534966547af770ee4ec20e7141ad8dfd8aac30798ada3f",
       "media_url": "https://raw.githubusercontent.com/La-RO/Naiwa/be323aef14752ba753e48f71cb977d321b362469/media/88690d0d1f0f4e619195c8a32e06f202ac6fe69e4ee6621833e944808d961301.mp4",
-      "container_id": "18129664324745127"
+      "container_id": "18129664324745127",
+      "media_id": "18208642690371687",
+      "published_at": "2026-10-23T11:42:52.650904+00:00",
+      "error": ""
     }
   },
   "discovery": {},
