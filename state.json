@@ -426,7 +426,8 @@
       "credit": "奶蛙艺术宇宙 / used with permission",
       "ai_generated": false,
       "reviewed": true,
-      "added_at": "2026-10-23T05:45:03.887875+00:00"
+      "added_at": "2026-10-23T05:45:03.887875+00:00",
+      "video_style": "slideshow"
     },
     "repo:wallpaper-tunnel": {
       "id": "repo:wallpaper-tunnel",
@@ -443,7 +444,8 @@
       "credit": "奶蛙艺术宇宙 / used with permission",
       "ai_generated": false,
       "reviewed": true,
-      "added_at": "2026-10-23T05:45:03.889099+00:00"
+      "added_at": "2026-10-23T05:45:03.889099+00:00",
+      "video_style": "slideshow"
     },
     "repo:laughing-gallery": {
       "id": "repo:laughing-gallery",
@@ -460,7 +462,8 @@
       "credit": "奶蛙艺术宇宙 / used with permission",
       "ai_generated": false,
       "reviewed": true,
-      "added_at": "2026-10-23T05:45:03.893974+00:00"
+      "added_at": "2026-10-23T05:45:03.893974+00:00",
+      "video_style": "slideshow"
     }
   },
   "jobs": {
