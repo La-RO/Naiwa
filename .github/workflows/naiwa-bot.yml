@@ -60,6 +60,7 @@ jobs:
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
           BOT_ENCRYPTION_KEY: ${{ secrets.BOT_ENCRYPTION_KEY }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python -m naiwa_bot --github-state --state "$RUNNER_TEMP/naiwa-state" --scratch "$RUNNER_TEMP/naiwa-scratch"
       - name: Attach operation summary
         if: always()

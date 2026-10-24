@@ -37,12 +37,11 @@ def summary(config, store, now, result):
     for asset in list(store.data["assets"].values())[-100:]:
         if not asset["reviewed"] and asset["rights"] != "rejected":
             text.append("| " + " | ".join(markdown(asset.get(k, "")) for k in ("id", "kind", "title", "source_url")) + " |")
-    text += ["", "## 最近发布记录", "", "| 时段 ID | 状态 | 素材 ID | Instagram 媒体 ID | 视频生成说明 |", "| --- | --- | --- | --- | --- |"]
+    text += ["", "## 最近发布记录", "", "| 时段 ID | 状态 | 素材 ID | Instagram 媒体 ID |", "| --- | --- | --- | --- |"]
     for slot, job in sorted(store.data["jobs"].items(), reverse=True)[:30]:
-        text.append("| " + " | ".join(markdown(v) for v in (slot, job["status"], job.get("asset_id", ""), job.get("media_id", ""), job.get("generation_reason", ""))) + " |")
+        text.append("| " + " | ".join(markdown(v) for v in (slot, job["status"], job.get("asset_id", ""), job.get("media_id", ""))) + " |")
     automatic = config.discovery.get("auto_publish", False)
     text += ["", "网络自动发布：" + ("已开启；转载权利未核实，依据运营者策略发布。" if automatic else "关闭；搜索结果需审核。"),
-             "OpenAI 视频生成当前不可用；网络无可用视频时跳过视频发布。图片 Post 按排期执行。",
              "pending 素材不会自动发布。AI 内容在画面中标注为虚构日常。",
              "GitHub 定时任务可能延迟；机器人仅执行当天时段，不补发过去日期。", ""]
     return "\n".join(text)

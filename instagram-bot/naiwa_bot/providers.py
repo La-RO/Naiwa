@@ -1,3 +1,4 @@
+import base64
 from datetime import datetime, timedelta, timezone
 import hashlib
 import os
@@ -7,6 +8,8 @@ from urllib.parse import urlencode
 from cryptography.fernet import Fernet
 
 from .catalogue import asset_id
+from .config import inside
+from .media import validate_web_video
 from .network import RemoteError, checked_json
 
 
@@ -135,18 +138,80 @@ def discover(config, store, client, now):
     return f"Search candidates added today: {record['added']}"
 
 
-OPENAI_VIDEO_UNAVAILABLE = (
-    "OpenAI video generation is unavailable: Videos API retired on 2026-09-24; "
-    "no replacement is listed"
-)
-
-
 def generate_video(config, store, client, now):
-    # Keep the fallback hook for existing callers without calling a retired API.
-    # Legacy Gemini settings/keys must never reactivate the removed provider.
-    if not config.ai["enabled"]:
+    settings = config.ai
+    if not settings["enabled"]:
         return None
-    raise ValueError(OPENAI_VIDEO_UNAVAILABLE)
+    if not settings["character_rights_confirmed"]:
+        raise ValueError("Confirm character/reference rights in config.toml before AI generation")
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    if not api_key:
+        raise ValueError("Set GEMINI_API_KEY to enable AI video generation")
+    if not settings["reference_image"]:
+        raise ValueError("Set a licensed reference_image to preserve Naiwa's appearance")
+    reference = inside(config.root, settings["reference_image"])
+    if reference.suffix.lower() not in (".jpg", ".jpeg", ".png", ".webp") or reference.stat().st_size > 8_000_000:
+        raise ValueError("AI reference must be an image under 8 MB")
+    day = now.astimezone(config.timezone).date().isoformat()
+    requests = store.data["ai_requests"].setdefault(day, [])
+    if len(requests) >= settings["max_requests_per_day"]:
+        return None
+    sequence = len(requests)
+    request_id = asset_id("ai", f"{day}:{sequence}")
+    record = {"id": request_id, "status": "requested", "model": settings["model"], "at": now.isoformat()}
+    requests.append(record)
+    store.save()
+    scenes = settings["daily_scenes"]
+    scene = scenes[now.astimezone(config.timezone).date().toordinal() % len(scenes)]
+    seconds = settings.get("duration_seconds", 5)
+    prompt = (f"Use the image only as a character reference. Create a {seconds}-second animated fictional daily-life video. "
+              f"The mascot must perform visible body motion; no slideshows, static frames, image pan/zoom, or camera-only motion. "
+              f"Preserve the exact mascot in the reference: "
+              f"{settings['character_description']}. Scene: {scene}. Warm humorous wholesome cartoon, "
+              "one coherent action, gentle camera, no dialogue, no logos, no text. This is fictional animation.")
+    mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}[reference.suffix.lower()]
+    temporary = store.path / (request_id.split(":", 1)[1] + ".pending")
+    try:
+        response = client.post("https://generativelanguage.googleapis.com/v1beta/interactions",
+            headers={"x-goog-api-key": api_key}, json={"model": settings["model"],
+                "input": [{"type": "image", "mime_type": mime, "data": base64.b64encode(reference.read_bytes()).decode()},
+                          {"type": "text", "text": prompt}],
+                "response_format": {"type": "video", "aspect_ratio": "9:16", "resolution": "720p", "duration": f"{seconds}s"},
+                "background": False, "store": False, "stream": False}, timeout=900)
+        data = checked_json(response)
+        videos = [part for step in data.get("steps", []) if step.get("type") == "model_output"
+                  for part in step.get("content", []) if part.get("type") == "video" and part.get("data")]
+        if data.get("status") != "completed" or not videos:
+            raise RemoteError("Video provider did not return a completed inline video")
+        content = base64.b64decode(videos[0]["data"], validate=True)
+        if not content or len(content) > 80_000_000:
+            raise ValueError("Generated video exceeds media limit or is empty")
+        digest = hashlib.sha256(content).hexdigest()
+        if any(asset.get("sha256") == digest for asset in store.data["assets"].values()):
+            raise ValueError("Generated video duplicates existing material")
+        path = "media/" + digest + ".mp4"
+        temporary.write_bytes(content)
+        validate_web_video(temporary)
+        temporary.replace(store.path / path)
+        approved = settings["auto_approve"]
+        asset = {"id": request_id, "kind": "video", "title": f"奶蛙虚构日常 · {day}",
+                 "url": "", "source_url": "https://github.com/La-RO/Naiwa", "state_path": path,
+                 "local_path": "", "sha256": digest, "rights": "ai" if approved else "pending",
+                 "evidence": "Configured character rights confirmation; " + settings["model"] if approved else "",
+                 "credit": "Naiwa Club / AI-generated", "ai_generated": True, "reviewed": approved,
+                 "added_at": now.isoformat(), "prompt": prompt, "model": settings["model"],
+                 "reference_sha256": hashlib.sha256(reference.read_bytes()).hexdigest(), "video_style": "motion"}
+        store.data["assets"][request_id] = asset
+        record.update(status="completed", asset_id=request_id)
+        store.save()
+        return asset
+    except Exception:
+        temporary.unlink(missing_ok=True)
+        record["status"] = "failed_or_unknown"
+        store.save()
+        raise RemoteError("AI generation failed or timed out; daily request reservation retained") from None
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def oauth_url(config, store):

@@ -27,13 +27,9 @@ max_auto_videos_per_day = 1
 max_candidate_checks_per_day = 6
 
 [ai]
-# OpenAI Videos API retired on 2026-09-24 with no listed replacement.
-# Keep generation disabled; an API key alone cannot enable this feature.
-provider = "openai"
-enabled = false
+enabled = true
 duration_seconds = 5
-model = ""
-# Legacy generation settings retained for compatibility; they do not enable an API.
+model = "gemini-omni-1.1-flash"
 # A licensed reference image, relative to the repository root.
 reference_image = "assets/gallery/l-18.webp"
 character_description = "Naiwa, a round yellow cartoon mascot with green eyes, a small head and a large soft belly"

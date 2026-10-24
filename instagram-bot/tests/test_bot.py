@@ -1,3 +1,4 @@
+import base64
 import copy
 from datetime import datetime, timezone
 import json
@@ -15,7 +16,7 @@ from naiwa_bot.config import Config, inside
 from naiwa_bot.engine import due_slots, preview, publish_slot, run
 from naiwa_bot.media import overlay, prepare
 from naiwa_bot.network import download, validate_public_url
-from naiwa_bot.providers import OPENAI_VIDEO_UNAVAILABLE, Instagram, caption, discover, generate_video, oauth_exchange
+from naiwa_bot.providers import Instagram, caption, discover, generate_video, oauth_exchange
 from naiwa_bot.state import Store
 from naiwa_bot.__main__ import execute
 
@@ -29,6 +30,14 @@ def cfg():
     value = Config.load(ROOT)
     value.ai.update(enabled=False, character_rights_confirmed=False, auto_approve=False)
     return value
+
+
+@pytest.fixture(scope="session")
+def small_mp4(tmp_path_factory):
+    source = tmp_path_factory.mktemp("generated-video") / "sample.mp4"
+    subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                    "testsrc2=size=160x240:rate=24", "-t", "3", "-c:v", "libx264", str(source)], check=True)
+    return source.read_bytes()
 
 
 class MemoryStore(Store):
@@ -354,41 +363,28 @@ def test_discovery_calls_once_per_query_per_day(cfg, store, monkeypatch):
     assert candidate["kind"] == "candidate" and candidate["rights"] == "pending"
 
 
-@pytest.mark.parametrize("configuration,key_name", [
-    ("openai", "OPENAI_API_KEY"),
-    ("legacy_gemini_without_provider", "GEMINI_API_KEY"),
-    ("legacy_gemini_provider", "GEMINI_API_KEY"),
-    ("openai", None),
-])
-def test_unavailable_generation_never_calls_any_provider_or_changes_state(cfg, store, monkeypatch, configuration, key_name):
-    for name in ("OPENAI_API_KEY", "GEMINI_API_KEY"):
-        monkeypatch.delenv(name, raising=False)
-    cfg.ai.update(enabled=True)
-    if configuration == "openai":
-        cfg.ai.update(provider="openai", model="sora-2")
-    else:
-        cfg.ai.update(model="gemini-omni-1.1-flash", character_rights_confirmed=True,
-                      reference_image="assets/gallery/l-18.webp", auto_approve=True)
-        if configuration == "legacy_gemini_without_provider":
-            cfg.ai.pop("provider", None)
-        else:
-            cfg.ai["provider"] = "gemini"
-    if key_name:
-        monkeypatch.setenv(key_name, "dummy-key-must-never-be-used")
-    before = copy.deepcopy(store.data)
-    files_before = sorted(path.relative_to(store.path) for path in store.path.rglob("*"))
+def test_ai_daily_cap_includes_unknown_requests(cfg, store, monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    cfg.ai.update(enabled=True, character_rights_confirmed=True, reference_image="assets/gallery/l-18.webp")
     calls = []
-    def handler(request):
-        calls.append(request)
-        pytest.fail("An unavailable video provider must never receive a request")
-    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
-        for _ in range(2):
-            with pytest.raises(ValueError) as error:
-                generate_video(cfg, store, client, NOW)
-            assert str(error.value) == OPENAI_VIDEO_UNAVAILABLE
-    assert not calls
-    assert store.data == before and store.snapshots == []
-    assert sorted(path.relative_to(store.path) for path in store.path.rglob("*")) == files_before
+    def handler(req):
+        calls.append(req)
+        raise httpx.ReadTimeout("timeout")
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    with pytest.raises(RuntimeError):
+        generate_video(cfg, store, client, NOW)
+    assert generate_video(cfg, store, client, NOW) is None
+    assert len(calls) == 1
+
+
+def test_ai_rest_steps_are_parsed_and_await_review(cfg, store, monkeypatch, small_mp4):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    cfg.ai.update(enabled=True, character_rights_confirmed=True, reference_image="assets/gallery/l-18.webp", auto_approve=False)
+    response = {"status":"completed", "steps":[{"type":"model_output", "content":[{"type":"video", "data":base64.b64encode(small_mp4).decode()}]}]}
+    client = httpx.Client(transport=httpx.MockTransport(lambda req: httpx.Response(200,json=response)))
+    asset = generate_video(cfg, store, client, NOW)
+    assert asset["ai_generated"] and asset["rights"] == "pending" and not asset["reviewed"]
+    assert not eligible(store, "story", NOW, 30)
 
 
 def test_oauth_rejects_csrf_before_network(cfg, store, monkeypatch):
@@ -472,20 +468,11 @@ def test_download_size_limit_cleans_up_partial(monkeypatch, tmp_path):
     assert not destination.exists() and not destination.with_suffix(".part").exists()
 
 
-def test_disabled_generation_has_no_requests_or_state_side_effects(cfg, store, monkeypatch):
-    cfg.ai["enabled"] = False
-    monkeypatch.setenv("OPENAI_API_KEY", "dummy-openai-key")
-    monkeypatch.setenv("GEMINI_API_KEY", "dummy-old-key")
-    before = copy.deepcopy(store.data)
-    requests = []
-    def handler(request):
-        requests.append(request)
-        pytest.fail("Disabled generation must not request a paid API")
-    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
-        assert generate_video(cfg, store, client, NOW) is None
-    assert requests == []
-    assert store.data == before and store.snapshots == []
-    assert not list((store.path / "media").iterdir())
+def test_ai_rights_confirmation_is_required_before_billing(cfg, store, monkeypatch):
+    cfg.ai["enabled"] = True
+    with pytest.raises(ValueError, match="rights"):
+        generate_video(cfg, store, None, NOW)
+    assert not store.data["ai_requests"]
 
 
 def test_source_mutation_after_review_is_detected(cfg, store, tmp_path):

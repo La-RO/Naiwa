@@ -4,7 +4,7 @@ import time
 from .catalogue import eligible, import_catalogue, publishable
 from .auto_video import replenish_from_web
 from .media import MEDIA_POLICY_VERSION, prepare
-from .providers import OPENAI_VIDEO_UNAVAILABLE, Instagram, discover, generate_video
+from .providers import Instagram, discover, generate_video
 from .network import RemoteError
 
 
@@ -83,22 +83,15 @@ def publish_slot(config, store, client, ig, slot, channel, now, scratch, prepare
     if not job or job["status"] == "blocked":
         choices = eligible(store, channel, now, config.schedule["reuse_after_days"])
         web_status = "not_attempted"
-        generation_reason = ""
         if not choices and channel == "story" and config.discovery.get("auto_publish", False):
             web = replenish_from_web(config, store, client, now, scratch / "discovery")
             web_status = web["status"]
             choices = eligible(store, channel, now, config.schedule["reuse_after_days"])
         if not choices and channel == "story" and web_status == "no_usable_video":
-            try:
-                generate_video(config, store, client, now)
-            except (ValueError, RemoteError) as error:
-                generation_reason = safe_error(error)
+            generate_video(config, store, client, now)
             choices = eligible(store, channel, now, config.schedule["reuse_after_days"])
         if not choices:
             store.data["jobs"][slot] = {"channel": channel, "status": "blocked", "error": "No usable unused material; web status: " + web_status}
-            if web_status == "no_usable_video":
-                store.data["jobs"][slot].update(generation_status="unavailable",
-                    generation_reason=generation_reason or OPENAI_VIDEO_UNAVAILABLE)
             store.save()
             return "blocked"
         asset = choices[0]
