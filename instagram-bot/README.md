@@ -9,13 +9,13 @@
 - 导入本仓库 `data/images.json`、`data/videos.json`，读取本地素材。现有清单为 24 张图片、3 段视频。
 - Story 没有可用视频时，通过 Tavily 全网搜索奶蛙相关内容，每天最多 3 个搜索词。当前按运营者要求，自动检查最多 6 个网页、下载最多 1 段公开 MP4；成功后加入发布池，不再逐条人工审批。
 - 自动下载的视频记录 `rights=unverified` 和运营者发布策略，保留来源、文件哈希与下载结果；这代表运营者选择自动发布，不代表系统已经核实第三方转载许可。
-- 网络没有可用动态视频时，用 Gemini 生成 3–5 秒奶蛙虚构日常；默认 5 秒、每天最多请求 1 次，成功校验后自动进入发布池。需配置 GEMINI_API_KEY 和视频生成额度。
+- 已移除 Gemini 调用。OpenAI Videos API 已于 2026-09-24 停用，暂时无法用 OpenAI key 自动生成短视频；网络没有可用视频时记录原因并跳过该次视频发布，图片 Post 仍正常按排期执行。
 - WEBP/PNG 转成 1080×1350 JPEG；视频转成 1080×1920 H.264/AAC。Story 最长 15 秒，Reels 最长 60 秒；较长视频取开头片段。
 - 所有媒体保留来源署名；AI 视频在画面中固定标注 `AI-GENERATED / FICTIONAL DAILY LIFE`，Feed 文案也明确说明。
 - 内容哈希去重、30 天重复使用冷却、容器状态检查、失败重试上限、发布结果不确定时停止重发。
 - Actions 每次运行提供中文 Summary，显示待审核素材、排期和最近发布记录。
 
-**初始为暂停。** 导入器仍将新增网站清单设为待审核；现有 27 项素材的许可确认通过独立状态分支的运营者审核记录保存。网络自动发布通过下方的明确配置控制，不把未知授权写成“已获许可”。AI 仅作为网络缺片时的备用，已按运营者要求启用。
+**初始为暂停。** 导入器仍将新增网站清单设为待审核；现有 27 项素材的许可确认通过独立状态分支的运营者审核记录保存。网络自动发布通过下方的明确配置控制，不把未知授权写成“已获许可”。AI 视频生成当前关闭；已有 AI 素材的来源和标记保留。
 
 ## 在 GitHub 部署
 
@@ -33,7 +33,6 @@
 | `IG_USER_ID` | 推荐 | 与 token 对应的 Instagram User ID，防止绑错账号 |
 | `BOT_ENCRYPTION_KEY` | 发布必需 | 加密长期 token，生成方法见下方 |
 | `TAVILY_API_KEY` | 联网搜素材时需要 | 搜索 API；缺失时跳过搜索，不影响已有素材发布 |
-| `GEMINI_API_KEY` | 生成 AI 视频时需要 | 有视频生成权限和可用额度的 Gemini API key |
 
 `GITHUB_TOKEN` 由 Actions 自动提供，工作流只申请 `contents: write`，用于写入独立状态分支。若组织策略、Ruleset 或分支保护禁止创建/更新 `naiwa-bot-state`，必须先允许这个分支被工作流写入；状态无法保存时，机器人停止发布。
 
@@ -104,7 +103,7 @@ helper 会验证 15 分钟有效的 state，并将 token 写成加密形式。�
 
 ## 缺视频时自动网络补片
 
-当前默认配置按运营者指示启用自动网络补片，AI 只在成功搜索且确认没有可用视频后作为备用：
+当前默认配置按运营者指示启用自动网络补片；视频生成当前不可用：
 
 ```toml
 [discovery]
@@ -120,7 +119,7 @@ max_candidate_checks_per_day = 6
 queries = ["奶蛙 视频 mp4", "Naiwa 奶蛙 视频", "奶蛙 短视频"]
 ```
 
-在 GitHub Secrets 添加 `TAVILY_API_KEY` 使用搜索服务；添加 `GEMINI_API_KEY` 并开通视频生成额度，才可使用备用生成。已有可用 Story 视频时不自动调用搜索；库存为空时，在搜索时段之后收集候选，并在当天 Story 时段尝试提取和下载视频。暂停时不会自动搜索或下载。
+在 GitHub Secrets 添加 `TAVILY_API_KEY` 使用搜索服务；当前无需配置视频生成 key。已有可用 Story 视频时不自动调用搜索；库存为空时，在搜索时段之后收集候选，并在当天 Story 时段尝试提取和下载视频。暂停时不会自动搜索或下载。
 
 自动流程支持公开 MP4 直链，以及静态网页的 `<video>`、Open Graph 和 JSON-LD 视频地址。只依据标题和搜索摘要筛选奶蛙相关性，不进行 AI 视觉识别。不能保证每个搜索结果都能下载；需要登录、播放器脚本或不可直接取出媒体的网站会跳过。没有可用结果时记录 `blocked`，不会发布一个网页链接冒充视频。
 
@@ -170,28 +169,23 @@ queries = ["奶蛙 视频 mp4", "Naiwa 奶蛙 视频", "奶蛙 短视频"]
 
 未完成任务在使用旧缓存或旧 Instagram 容器前重新检查素材类型与内容规则。旧缓存会按新版本重新生成；如果素材被归类为图集，未发布任务重新选片。正在发布但结果不明的任务继续进入人工核对，防止重复发出。
 
-备用生成使用已有 Gemini Interactions API：
+按运营者要求移除了 Gemini 生成实现和密钥读取。视频提供方配置保留为 OpenAI，但当前没有可调用的接口：OpenAI 官方说明 Videos API 和 Sora 2 已于 **2026-09-24** 停用，未列出替代接口。核实日期：2026-10-24，见 [官方停用清单](https://developers.openai.com/api/docs/deprecations#2026-03-24-sora-2-video-generation-models-and-videos-api)。
 
 ```toml
 [ai]
-enabled = true
+provider = "openai"
+enabled = false
 duration_seconds = 5
-model = "gemini-omni-1.1-flash"
-reference_image = "assets/gallery/l-18.webp"
-character_description = "Naiwa, a round yellow cartoon mascot with green eyes, a small head and a large soft belly"
-character_rights_confirmed = true
-auto_approve = true
-max_requests_per_day = 1
-daily_scenes = ["making breakfast", "reading in a library", "taking a walk in the park"]
+model = ""
 ```
 
-`duration_seconds` 只接受3、4、5。请求要求角色真实动作并禁止图集、静帧和只移动镜头；生成内容经过MP4/解码/动态采样与去重校验，发布转码再次强制裁到3–5秒。AI标记仍固定烧录在画面和Feed文案中。提供给模型的图片只用作角色参考，不会由机器人制作成静态图片循环视频。
+这表示选择了 OpenAI 并关闭不可用的生成能力，**不表示已接通 OpenAI 视频生成**。当前无需添加 `OPENAI_API_KEY`；已有的 key 不会被读取、输出或调用。旧配置即使仍有 Gemini 模型名、旧密钥或 `enabled = true`，也不会调用 Google 或已停用的 OpenAI 视频接口，不会创建计费请求记录。
 
-在 GitHub Secrets 配置 `GEMINI_API_KEY`，从 [Google AI Studio](https://aistudio.google.com/api-keys) 获取，并在服务商账户开通视频生成权限/额度。Tavily key 只用于搜索，不能代替视频生成 key。没有生成 key 时已有图片 Post 和合格网络视频仍可正常发布；只有备用生成不可用。
+网络搜索确认没有可用视频时，该 Story 时段记录 `blocked`，并保存 `generation_status=unavailable` 及 `generation_reason`，说明 OpenAI 视频接口已停用；当天后续运行仍可使用后来补充的合格视频。搜索缺 key、超时或临时不可访问仍单独记录搜索原因。同一天的图片 Post 或已有合格 Reel 继续正常执行，图片不会转成视频。
 
-只有成功搜索、检查候选后没有可用视频才允许生成。搜索密钥缺失、超时、限流、网页临时不可访问、状态无法保存，都不会被当成“网络没有视频”来触发额外付费调用。每次生成先保存每日请求占用；超时不会退回次数，避免重复扣费。当日生成额度已用尽时不再追加付费请求。
+保留了原有 AI 素材的标记、模型及来源记录。手动添加的 AI 动态视频继续按既有流程处理；`duration_seconds` 只接受 3、4、5，发布转码裁为对应时长，并固定烧录 AI 标记。未来接入可用视频服务需单独实现和验收，不通过更改 key 名称假装接口可用。
 
-画面变化检测可以拦截纯静止MP4，但不能可靠识别所有带缩放或转场的第三方图集。已知三个图集通过内容元数据明确排除。测试使用本地真实转码与模拟服务响应，没有调用实际付费生成。
+画面变化检测可以拦截纯静止MP4，但不能可靠识别所有带缩放或转场的第三方图集。已知三个图集通过内容元数据明确排除。测试使用本地真实转码和模拟网络响应，并验证缺片时不会调用生成服务。
 
 ## 排期、存储与恢复
 
@@ -228,7 +222,7 @@ python -m pytest -q
 python -m naiwa_bot preview
 ```
 
-本地默认只预览，不会发帖。模拟测试覆盖真实目录导入、授权门槛、日历周期、夏令时、hash 去重、视频转码、AI 画面标记、token 加密、账号核对、搜索限额、AI 请求限额和发布不确定时停止重试。真实 Instagram 发布、Meta App Review、GitHub 工作流执行与实际付费视频生成，需要连接账号后再验收。
+本地默认只预览，不会发帖。模拟测试覆盖真实目录导入、授权门槛、日历周期、夏令时、hash 去重、视频转码、AI 画面标记、token 加密、账号核对、搜索限额、生成服务不可用时的处理和发布不确定时停止重试。真实 Instagram 发布、Meta App Review 与 GitHub 工作流执行，需要连接账号后再验收。
 
 ## 官方参考
 
@@ -237,5 +231,4 @@ python -m naiwa_bot preview
 - [GitHub 定时与手动触发](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)
 - [GitHub 任务并发控制](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)
 - [Tavily Search API](https://docs.tavily.com/documentation/api-reference/endpoint/search)
-- [Google 视频生成和 Interactions 接口](https://ai.google.dev/gemini-api/docs/omni)
 - [OpenAI API 停用清单](https://developers.openai.com/api/docs/deprecations)

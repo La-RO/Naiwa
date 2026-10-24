@@ -13,6 +13,7 @@ from naiwa_bot import auto_video, engine
 from naiwa_bot.catalogue import eligible, publishable
 from naiwa_bot.config import Config
 from naiwa_bot.network import RemoteError
+from naiwa_bot.providers import OPENAI_VIDEO_UNAVAILABLE
 from naiwa_bot.state import Store
 
 
@@ -57,6 +58,7 @@ def cfg():
 def fake_public_network(monkeypatch):
     monkeypatch.setenv("TAVILY_API_KEY", "test-search-key")
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setattr("naiwa_bot.network.socket.getaddrinfo", lambda *_args, **_kwargs: [
         (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", ("93.184.216.34", 443))])
 
@@ -306,7 +308,7 @@ def test_empty_feed_does_not_trigger_story_replenishment(cfg, store, tmp_path, m
     assert ig.creates == ig.publishes == 0
 
 
-def test_disabled_ai_never_requests_generation_when_search_finds_nothing(cfg, store, tmp_path):
+def test_empty_web_result_blocks_with_openai_generation_unavailable(cfg, store, tmp_path):
     requests = []
     def handler(request):
         requests.append(request.url.host)
@@ -318,6 +320,9 @@ def test_disabled_ai_never_requests_generation_when_search_finds_nothing(cfg, st
     assert requests == ["api.tavily.com"]
     assert not store.data["ai_requests"]
     assert ig.creates == ig.publishes == 0
+    job = store.data["jobs"][SLOT]
+    assert job["generation_status"] == "unavailable"
+    assert job["generation_reason"] == OPENAI_VIDEO_UNAVAILABLE
 
 
 def test_import_journal_save_failure_stops_before_instagram(cfg, store, tmp_path, monkeypatch):
