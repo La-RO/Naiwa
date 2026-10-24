@@ -9,6 +9,7 @@ from cryptography.fernet import Fernet
 
 from .catalogue import asset_id
 from .config import inside
+from .media import validate_web_video
 from .network import RemoteError, checked_json
 
 
@@ -66,6 +67,10 @@ class Instagram:
         return {"user_id": user_id, "username": info["username"], "account_type": info["account_type"]}
 
     def create(self, job, asset, media_url):
+        if asset["kind"] not in ("image", "video") or (job["channel"] == "story" and asset["kind"] != "video"):
+            raise ValueError("Images can only be image Posts; Stories/Reels require video")
+        if job.get("kind", asset["kind"]) != asset["kind"] or asset.get("video_style") in ("slideshow", "still", "pan_zoom"):
+            raise ValueError("Media content type no longer matches the publishing job")
         payload = {"video_url" if asset["kind"] == "video" else "image_url": media_url}
         if job["channel"] == "story":
             payload["media_type"] = "STORIES"
@@ -100,28 +105,35 @@ def discover(config, store, client, now):
         return "Search skipped: TAVILY_API_KEY is not configured"
     day = now.astimezone(config.timezone).date().isoformat()
     record = store.data["discovery"].setdefault(day, {"queries": [], "added": 0})
+    statuses = record.setdefault("query_status", {})
     for query in config.discovery["queries"]:
         if query in record["queries"]:
             continue
-        # Persist before a billed call: a timeout must not create unbounded charges.
         record["queries"].append(query)
+        statuses[query] = "requested"
         store.save()
-        response = client.post("https://api.tavily.com/search", headers={"Authorization": f"Bearer {key}"},
-            json={"query": query, "search_depth": "basic", "max_results": config.discovery["max_results"],
-                  "include_answer": False, "include_images": False, "safe_search": True}, timeout=60)
-        data = checked_json(response)
-        for result in data.get("results", []):
-            url = result.get("url", "")
-            if not url.startswith("https://"):
-                continue
-            identity = asset_id("candidate", url)
-            if identity in store.data["assets"]:
-                continue
-            store.data["assets"][identity] = {"id": identity, "kind": "candidate", "title": result.get("title", "Untitled")[:200],
-                "url": "", "source_url": url, "local_path": "", "sha256": "", "rights": "pending", "evidence": "",
-                "credit": "", "ai_generated": False, "reviewed": False, "added_at": now.isoformat(),
-                "search_excerpt": str(result.get("content", ""))[:1500]}
-            record["added"] += 1
+        try:
+            response = client.post("https://api.tavily.com/search", headers={"Authorization": f"Bearer {key}"},
+                json={"query": query, "search_depth": "basic", "max_results": config.discovery["max_results"],
+                      "include_answer": False, "include_images": False, "safe_search": True}, timeout=60)
+            data = checked_json(response)
+            for result in data.get("results", []):
+                url = result.get("url", "")
+                if not url.startswith("https://"):
+                    continue
+                identity = asset_id("candidate", url)
+                if identity in store.data["assets"]:
+                    continue
+                store.data["assets"][identity] = {"id": identity, "kind": "candidate", "title": result.get("title", "Untitled")[:200],
+                    "url": "", "source_url": url, "local_path": "", "sha256": "", "rights": "pending", "evidence": "",
+                    "credit": "", "ai_generated": False, "reviewed": False, "added_at": now.isoformat(),
+                    "search_excerpt": str(result.get("content", ""))[:1500]}
+                record["added"] += 1
+        except Exception:
+            statuses[query] = "failed_or_unknown"
+            store.save()
+            raise
+        statuses[query] = "completed"
         store.save()
     return f"Search candidates added today: {record['added']}"
 
@@ -151,16 +163,21 @@ def generate_video(config, store, client, now):
     store.save()
     scenes = settings["daily_scenes"]
     scene = scenes[now.astimezone(config.timezone).date().toordinal() % len(scenes)]
-    prompt = (f"Create an 8-second animated fictional daily-life video. Preserve the exact mascot in the reference: "
+    seconds = settings.get("duration_seconds", 5)
+    prompt = (f"Use the image only as a character reference. Create a {seconds}-second animated fictional daily-life video. "
+              f"The mascot must perform visible body motion; no slideshows, static frames, image pan/zoom, or camera-only motion. "
+              f"Preserve the exact mascot in the reference: "
               f"{settings['character_description']}. Scene: {scene}. Warm humorous wholesome cartoon, "
               "one coherent action, gentle camera, no dialogue, no logos, no text. This is fictional animation.")
     mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}[reference.suffix.lower()]
+    temporary = store.path / (request_id.split(":", 1)[1] + ".pending")
     try:
         response = client.post("https://generativelanguage.googleapis.com/v1beta/interactions",
             headers={"x-goog-api-key": api_key}, json={"model": settings["model"],
                 "input": [{"type": "image", "mime_type": mime, "data": base64.b64encode(reference.read_bytes()).decode()},
                           {"type": "text", "text": prompt}],
-                "response_format": {"type": "video", "aspect_ratio": "9:16", "resolution": "720p"}}, timeout=900)
+                "response_format": {"type": "video", "aspect_ratio": "9:16", "resolution": "720p", "duration": f"{seconds}s"},
+                "background": False, "store": False, "stream": False}, timeout=900)
         data = checked_json(response)
         videos = [part for step in data.get("steps", []) if step.get("type") == "model_output"
                   for part in step.get("content", []) if part.get("type") == "video" and part.get("data")]
@@ -170,8 +187,12 @@ def generate_video(config, store, client, now):
         if not content or len(content) > 80_000_000:
             raise ValueError("Generated video exceeds media limit or is empty")
         digest = hashlib.sha256(content).hexdigest()
+        if any(asset.get("sha256") == digest for asset in store.data["assets"].values()):
+            raise ValueError("Generated video duplicates existing material")
         path = "media/" + digest + ".mp4"
-        (store.path / path).write_bytes(content)
+        temporary.write_bytes(content)
+        validate_web_video(temporary)
+        temporary.replace(store.path / path)
         approved = settings["auto_approve"]
         asset = {"id": request_id, "kind": "video", "title": f"奶蛙虚构日常 · {day}",
                  "url": "", "source_url": "https://github.com/La-RO/Naiwa", "state_path": path,
@@ -179,15 +200,18 @@ def generate_video(config, store, client, now):
                  "evidence": "Configured character rights confirmation; " + settings["model"] if approved else "",
                  "credit": "Naiwa Club / AI-generated", "ai_generated": True, "reviewed": approved,
                  "added_at": now.isoformat(), "prompt": prompt, "model": settings["model"],
-                 "reference_sha256": hashlib.sha256(reference.read_bytes()).hexdigest()}
+                 "reference_sha256": hashlib.sha256(reference.read_bytes()).hexdigest(), "video_style": "motion"}
         store.data["assets"][request_id] = asset
         record.update(status="completed", asset_id=request_id)
         store.save()
         return asset
     except Exception:
+        temporary.unlink(missing_ok=True)
         record["status"] = "failed_or_unknown"
         store.save()
         raise RemoteError("AI generation failed or timed out; daily request reservation retained") from None
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def oauth_url(config, store):

@@ -12,6 +12,7 @@ PUBLISHABLE_RIGHTS = ("owned", "permission", "licensed", "ai", "unverified")
 
 def publishable(asset):
     return (asset.get("reviewed") and asset.get("rights") in PUBLISHABLE_RIGHTS
+            and asset.get("video_style") not in ("slideshow", "still", "pan_zoom")
             and (asset["rights"] != "unverified" or asset.get("approval_mode") == "automatic_operator_policy"))
 
 
@@ -26,6 +27,8 @@ def import_catalogue(store, root: Path):
         for item in items:
             key = "repo:" + item["id"]
             if key in store.data["assets"]:
+                if kind == "video" and item.get("videoStyle"):
+                    store.data["assets"][key]["video_style"] = item["videoStyle"]
                 continue
             path = inside(root, item["src"])
             if not path.is_file():
@@ -38,6 +41,8 @@ def import_catalogue(store, root: Path):
                 "source_note": item.get("sourceNote", ""), "url": "", "sha256": digest,
                 "rights": "pending", "evidence": "", "credit": "", "ai_generated": False,
                 "reviewed": False, "added_at": datetime.now(timezone.utc).isoformat()}
+            if kind == "video":
+                store.data["assets"][key]["video_style"] = item.get("videoStyle", "motion")
             added += 1
     return added
 

@@ -15,7 +15,8 @@
     "titleEn": "Naiwa · Sanctuary Tour",
     "descriptionEn": "Enter the Naiwa art universe. Leave seriousness at the door.",
     "sourceNameEn": "Naiwa Art Universe",
-    "sourceNoteEn": "Collected from a public gallery page; the original creator and reuse permission have not been verified."
+    "sourceNoteEn": "Collected from a public gallery page; the original creator and reuse permission have not been verified.",
+    "videoStyle": "slideshow"
   },
   {
     "id": "wallpaper-tunnel",
@@ -33,7 +34,8 @@
     "titleEn": "Naiwa · Wallpaper Tunnel",
     "descriptionEn": "Look ahead. The next one is also a Naiwa.",
     "sourceNameEn": "Naiwa Art Universe",
-    "sourceNoteEn": "Collected from a public gallery page; the original creator and reuse permission have not been verified."
+    "sourceNoteEn": "Collected from a public gallery page; the original creator and reuse permission have not been verified.",
+    "videoStyle": "slideshow"
   },
   {
     "id": "laughing-gallery",
@@ -51,6 +53,7 @@
     "titleEn": "Naiwa · A Tour of the Laughing Gallery",
     "descriptionEn": "A short journey through roundness and laughter.",
     "sourceNameEn": "Naiwa Art Universe",
-    "sourceNoteEn": "Collected from a public gallery page; the original creator and reuse permission have not been verified."
+    "sourceNoteEn": "Collected from a public gallery page; the original creator and reuse permission have not been verified.",
+    "videoStyle": "slideshow"
   }
 ]

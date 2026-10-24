@@ -27,14 +27,15 @@ max_auto_videos_per_day = 1
 max_candidate_checks_per_day = 6
 
 [ai]
-enabled = false
+enabled = true
+duration_seconds = 5
 model = "gemini-omni-1.1-flash"
 # A licensed reference image, relative to the repository root.
-reference_image = ""
+reference_image = "assets/gallery/l-18.webp"
 character_description = "Naiwa, a round yellow cartoon mascot with green eyes, a small head and a large soft belly"
 # Explicitly confirm permission to use the character/reference before enabling AI.
-character_rights_confirmed = false
+character_rights_confirmed = true
 # Generated videos enter review unless this is explicitly enabled.
-auto_approve = false
+auto_approve = true
 max_requests_per_day = 1
 daily_scenes = ["making breakfast in a cozy kitchen", "taking a walk in a sunny park", "reading in a quiet library", "watering small plants on a balcony", "drinking tea while watching the rain", "drawing in a notebook", "stretching after a nap"]

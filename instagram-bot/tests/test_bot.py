@@ -27,7 +27,17 @@ NOW = datetime(2026, 10, 22, 8, 30, tzinfo=timezone.utc)  # 19:30 Sydney
 
 @pytest.fixture
 def cfg():
-    return Config.load(ROOT)
+    value = Config.load(ROOT)
+    value.ai.update(enabled=False, character_rights_confirmed=False, auto_approve=False)
+    return value
+
+
+@pytest.fixture(scope="session")
+def small_mp4(tmp_path_factory):
+    source = tmp_path_factory.mktemp("generated-video") / "sample.mp4"
+    subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error", "-f", "lavfi", "-i",
+                    "testsrc2=size=160x240:rate=24", "-t", "3", "-c:v", "libx264", str(source)], check=True)
+    return source.read_bytes()
 
 
 class MemoryStore(Store):
@@ -236,7 +246,7 @@ def test_image_converts_webp_to_instagram_jpeg(cfg, store, tmp_path):
 def test_actual_video_transcode_and_ai_disclosure(cfg, store, tmp_path):
     ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
     source = store.path / "media/source.mp4"
-    subprocess.run([ffmpeg, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "color=c=yellow:s=320x240:r=24", "-t", "3", "-c:v", "libx264", str(source)], check=True)
+    subprocess.run([ffmpeg, "-y", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=24", "-t", "3", "-c:v", "libx264", str(source)], check=True)
     asset = insert(store, digest="")
     asset.update(state_path="media/source.mp4", ai_generated=True)
     relative, _ = prepare(cfg, store, None, asset, "story", tmp_path / "scratch")
@@ -367,10 +377,10 @@ def test_ai_daily_cap_includes_unknown_requests(cfg, store, monkeypatch):
     assert len(calls) == 1
 
 
-def test_ai_rest_steps_are_parsed_and_await_review(cfg, store, monkeypatch):
+def test_ai_rest_steps_are_parsed_and_await_review(cfg, store, monkeypatch, small_mp4):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     cfg.ai.update(enabled=True, character_rights_confirmed=True, reference_image="assets/gallery/l-18.webp", auto_approve=False)
-    response = {"status":"completed", "steps":[{"type":"model_output", "content":[{"type":"video", "data":base64.b64encode(b"fake-video-bytes").decode()}]}]}
+    response = {"status":"completed", "steps":[{"type":"model_output", "content":[{"type":"video", "data":base64.b64encode(small_mp4).decode()}]}]}
     client = httpx.Client(transport=httpx.MockTransport(lambda req: httpx.Response(200,json=response)))
     asset = generate_video(cfg, store, client, NOW)
     assert asset["ai_generated"] and asset["rights"] == "pending" and not asset["reviewed"]

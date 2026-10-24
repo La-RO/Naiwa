@@ -66,7 +66,7 @@ def valid_mp4(tmp_path_factory):
     path = tmp_path_factory.mktemp("valid-web-mp4") / "frog.mp4"
     result = subprocess.run([
         imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-hide_banner", "-loglevel", "error",
-        "-f", "lavfi", "-i", "color=c=yellow:s=160x160:r=10:d=3.2", "-an",
+        "-f", "lavfi", "-i", "testsrc2=size=160x160:rate=10:duration=3.2", "-an",
         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(path),
     ], capture_output=True, timeout=30)
     assert result.returncode == 0, "Local test MP4 generation failed"
@@ -114,6 +114,14 @@ def fail_if_called(*_args, **_kwargs):
     raise AssertionError("This operation should not run")
 
 
+
+def successful_discover(config, store, *_args):
+    record = store.data["discovery"].setdefault(DAY, {"queries": [], "added": 0})
+    record["queries"] = list(config.discovery["queries"])
+    record["query_status"] = {query: "completed" for query in config.discovery["queries"]}
+    return "already searched"
+
+
 def test_existing_story_stock_does_not_search_or_download(cfg, store, tmp_path, monkeypatch):
     video(store)
     monkeypatch.setattr(auto_video, "discover", fail_if_called)
@@ -127,7 +135,7 @@ def test_existing_story_stock_does_not_search_or_download(cfg, store, tmp_path, 
 def test_rejected_candidate_is_not_automatically_imported(cfg, store, tmp_path, monkeypatch):
     item = candidate(store)
     item["rights"] = "rejected"
-    monkeypatch.setattr(auto_video, "discover", lambda *_: "already searched")
+    monkeypatch.setattr(auto_video, "discover", successful_discover)
     monkeypatch.setattr(auto_video, "find_video", fail_if_called)
     assert auto_video.replenish_from_web(cfg, store, None, NOW, tmp_path / "scratch")["status"] == "no_usable_video"
     assert store.data["assets"] == {item["id"]: item}
@@ -175,7 +183,7 @@ def test_duplicate_source_hash_is_not_imported(cfg, store, tmp_path, monkeypatch
     content = b"same existing source bytes"
     video(store, digest=hashlib.sha256(content).hexdigest(), rights="pending", reviewed=False)
     item = candidate(store)
-    monkeypatch.setattr(auto_video, "discover", lambda *_: "already searched")
+    monkeypatch.setattr(auto_video, "discover", successful_discover)
     downloads = fake_download(monkeypatch, content)
     monkeypatch.setattr(auto_video, "validate_web_video", fail_if_called)
     result = auto_video.replenish_from_web(cfg, store, None, NOW, tmp_path / "scratch")
@@ -210,7 +218,7 @@ def test_daily_candidate_limit_and_queries_are_not_repeated(cfg, store, tmp_path
 @pytest.mark.parametrize("failure", ["no_direct_link", "invalid_mp4", "partial_download"])
 def test_unusable_candidate_never_enters_media_and_temp_is_cleaned(cfg, store, tmp_path, monkeypatch, failure):
     item = candidate(store)
-    monkeypatch.setattr(auto_video, "discover", lambda *_: "already searched")
+    monkeypatch.setattr(auto_video, "discover", successful_discover)
     monkeypatch.setattr(auto_video, "find_video", lambda *_: None if failure == "no_direct_link" else "https://cdn.public.test/frog.mp4")
     def download(_client, _url, target):
         target.write_bytes(b"not an MP4 file")
@@ -218,8 +226,8 @@ def test_unusable_candidate_never_enters_media_and_temp_is_cleaned(cfg, store, t
             raise RemoteError("Download interrupted")
     monkeypatch.setattr(auto_video, "download", download)
     result = auto_video.replenish_from_web(cfg, store, None, NOW, tmp_path / "scratch")
-    assert result["status"] == "no_usable_video"
-    assert item["auto_status"] == ("no_public_mp4" if failure == "no_direct_link" else "unavailable")
+    assert result["status"] == ("scan_unavailable" if failure == "partial_download" else "no_usable_video")
+    assert item["auto_status"] == {"no_direct_link": "no_public_mp4", "invalid_mp4": "invalid_video", "partial_download": "unavailable"}[failure]
     assert not eligible(store, "story", NOW, 30)
     assert not list((store.path / "media").iterdir())
     assert not list((tmp_path / "scratch").iterdir())
@@ -314,7 +322,7 @@ def test_disabled_ai_never_requests_generation_when_search_finds_nothing(cfg, st
 
 def test_import_journal_save_failure_stops_before_instagram(cfg, store, tmp_path, monkeypatch):
     item = candidate(store)
-    monkeypatch.setattr(auto_video, "discover", lambda *_: "already searched")
+    monkeypatch.setattr(auto_video, "discover", successful_discover)
     fake_download(monkeypatch)
     original_save = store.save
     def fail_after_import():

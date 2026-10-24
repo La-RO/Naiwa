@@ -27,6 +27,8 @@ class Config:
             raise ValueError("Invalid Instagram API version")
         if not 1 <= cfg.ai["max_requests_per_day"] <= 3:
             raise ValueError("AI daily request limit must be 1..3")
+        if type(cfg.ai.get("duration_seconds", 5)) is not int or not 3 <= cfg.ai.get("duration_seconds", 5) <= 5:
+            raise ValueError("AI duration_seconds must be 3..5")
         if not 1 <= cfg.discovery["max_results"] <= 10 or len(cfg.discovery["queries"]) > 3:
             raise ValueError("Discovery is limited to three queries and ten results per query")
         if type(cfg.discovery.get("auto_publish", False)) is not bool:

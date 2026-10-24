@@ -3,7 +3,7 @@ import time
 
 from .catalogue import eligible, import_catalogue, publishable
 from .auto_video import replenish_from_web
-from .media import prepare
+from .media import MEDIA_POLICY_VERSION, prepare
 from .providers import Instagram, discover, generate_video
 from .network import RemoteError
 
@@ -68,27 +68,40 @@ def publish_slot(config, store, client, ig, slot, channel, now, scratch, prepare
         job.update(status="needs_review", error="Run interrupted during publish; verify Instagram before reconciling")
         store.save()
         return "needs_review"
+    if job and job.get("asset_id"):
+        reserved = store.data["assets"].get(job["asset_id"], {})
+        invalid = (not publishable(reserved) or (channel == "story" and reserved.get("kind") != "video")
+                   or job.get("kind") != reserved.get("kind"))
+        if invalid:
+            job.update(status="blocked", error="Media no longer matches current content rules")
+            store.save()
+        elif job.get("media_policy_version") != MEDIA_POLICY_VERSION:
+            for field in ("prepared_path", "media_url", "container_id", "sha256"):
+                job.pop(field, None)
+            job.update(status="planned", attempts=0, media_policy_version=MEDIA_POLICY_VERSION)
+            store.save()
     if not job or job["status"] == "blocked":
         choices = eligible(store, channel, now, config.schedule["reuse_after_days"])
-        if not choices and channel == "story":
-            if config.discovery.get("auto_publish", False):
-                replenish_from_web(config, store, client, now, scratch / "discovery")
-                choices = eligible(store, channel, now, config.schedule["reuse_after_days"])
-        if not choices and channel == "story":
+        web_status = "not_attempted"
+        if not choices and channel == "story" and config.discovery.get("auto_publish", False):
+            web = replenish_from_web(config, store, client, now, scratch / "discovery")
+            web_status = web["status"]
+            choices = eligible(store, channel, now, config.schedule["reuse_after_days"])
+        if not choices and channel == "story" and web_status == "no_usable_video":
             generate_video(config, store, client, now)
             choices = eligible(store, channel, now, config.schedule["reuse_after_days"])
         if not choices:
-            store.data["jobs"][slot] = {"channel": channel, "status": "blocked", "error": "No approved unused material"}
+            store.data["jobs"][slot] = {"channel": channel, "status": "blocked", "error": "No usable unused material; web status: " + web_status}
             store.save()
             return "blocked"
         asset = choices[0]
         job = {"channel": channel, "status": "planned", "asset_id": asset["id"], "kind": asset["kind"],
-               "attempts": 0, "created_at": now.isoformat()}
+               "attempts": 0, "created_at": now.isoformat(), "media_policy_version": MEDIA_POLICY_VERSION}
         store.data["jobs"][slot] = job
         store.save()
     asset = store.data["assets"][job["asset_id"]]
     if not publishable(asset):
-        job.update(status="blocked", error="Asset authorization was revoked")
+        job.update(status="blocked", error="Asset is excluded by current content or rights rules")
         store.save()
         return "blocked"
     if job["attempts"] >= 3:
