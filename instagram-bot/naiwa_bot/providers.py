@@ -12,7 +12,7 @@ from .video_gen import generate_video
 
 
 class Instagram:
-    def __init__(self, config, store, client):
+    def __init__(self, config, store, client, *, use_secret_token=False):
         self.config, self.store, self.client = config, store, client
         self.base = f"https://graph.instagram.com/{config.instagram['api_version']}"
         key = os.environ.get("BOT_ENCRYPTION_KEY", "")
@@ -20,12 +20,13 @@ class Instagram:
             raise ValueError("Set BOT_ENCRYPTION_KEY in GitHub Secrets")
         self.cipher = Fernet(key.encode())
         account = store.data["account"]
-        if account:
+        self.use_secret_token = use_secret_token
+        if account and not use_secret_token:
             self.token = self.cipher.decrypt(account["encrypted_token"].encode()).decode()
             self.user_id = account["user_id"]
         else:
             self.token = os.environ.get("IG_ACCESS_TOKEN", "")
-            self.user_id = os.environ.get("IG_USER_ID", "")
+            self.user_id = os.environ.get("IG_USER_ID", "") or (account["user_id"] if account else "")
         if not self.token:
             raise ValueError("Set a long-lived IG_ACCESS_TOKEN in GitHub Secrets")
 
@@ -38,7 +39,10 @@ class Instagram:
         return checked_json(result)
 
     def verify(self, now):
-        info = self.request("GET", "me", params={"fields": "user_id,username,account_type"})
+        try:
+            info = self.request("GET", "me", params={"fields": "user_id,username,account_type"})
+        except RemoteError as error:
+            raise RemoteError("Instagram account verification: " + str(error)) from None
         if info.get("username", "").lower() != self.config.instagram["username"].lower():
             raise ValueError("Instagram token belongs to a different username")
         user_id = str(info.get("user_id") or info.get("id") or "")
@@ -47,7 +51,7 @@ class Instagram:
         if info.get("account_type") != "BUSINESS":
             raise ValueError("Daily Stories require an Instagram Business account")
         self.user_id = user_id
-        previous = self.store.data["account"]
+        previous = None if self.use_secret_token else self.store.data["account"]
         if previous and now - datetime.fromisoformat(previous["refreshed_at"]) >= timedelta(days=7):
             try:
                 response = self.client.get("https://graph.instagram.com/refresh_access_token",

@@ -55,7 +55,26 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 4. 取得长效 User Access Token，再填写 GitHub Secrets。不要把 Facebook Login 的 Page token 混用到这个实现。
 5. 在 `config.toml` 的 `instagram.api_version` 配置 Meta 应用支持的版本；本项目保守使用 `v24.0`，上线时按应用后台和官方参考确认。
 
-运行时会把 token 加密后保存在状态分支，至少间隔 7 天尝试续期。首次 `IG_ACCESS_TOKEN` 需要是有效长效 token；若长期停机、授权撤销或续期失败，需要重新授权。已有加密账户记录时，以该记录为准；重新绑定时，在暂停状态下按本地 OAuth 流程替换账号记录，或在备份后移除状态文件中的 `account` 对象，让下次运行读取新的 Secrets。
+运行时会把 token 加密后保存在状态分支，至少间隔 7 天尝试续期。首次 `IG_ACCESS_TOKEN` 需要是有效长效 token；若长期停机、授权撤销或续期失败，需要重新授权。正常运行优先读取已保存的加密账户记录，避免把自动续期后的 token 换回旧 Secret。
+
+### 更新 token 与重新绑定
+
+仅更新 `IG_ACCESS_TOKEN` 不会覆盖已有绑定。重新授权后按以下步骤操作：
+
+1. 在工作流运行 `pause`，等操作完成。
+2. 在 Meta 应用中重新授权 `unimelb.naiwaclub`，使用 Instagram Login 的长效 User Access Token，确认授予 `instagram_business_basic` 与 `instagram_business_content_publish`。权限名称见 [Meta 官方 Collection](https://www.postman.com/meta/instagram/folder/6raa77c/instagram-api-with-instagram-login)。
+3. 更新 GitHub Secret `IG_ACCESS_TOKEN`；`IG_USER_ID` 应与该 token 对应账号的 ID 一致。
+4. 在同一个工作流选择 `check`，payload 填：
+
+```json
+{"use_secret_token":true}
+```
+
+此模式直接读取 Secret 中的 token，先验证用户名、账号 ID 和 Business 类型；验证成功后才加密替换旧账户记录。失败时保留原绑定，不修改素材、发布记录或暂停状态。它不创建媒体、不发布内容、不调用 Runway，也不清除状态分支。
+
+成功结果含 `connected: true`、`binding_updated: true` 和 `token_source: IG_ACCESS_TOKEN`。之后普通 `check` 和 `run` 继续读取已保存、可自动续期的绑定；确认连接后按计划运行 `resume` / `run`。
+
+如果新 token 仍在账号校验时返回 HTTP 400、code=200，保持暂停并核对 Meta 应用对该账号的授权、应用角色及权限访问级别。token 显示 Valid 只表示 token 校验有效，不能代替接口权限检查。原始远程错误正文不会写入公开日志；账号校验失败会增加 `Instagram account verification` 阶段标识。
 
 如果应用提供了可用的开发者 token 生成入口，可用它完成初始设置。也附带本地 OAuth helper：
 
@@ -83,7 +102,7 @@ helper 会验证 15 分钟有效的 state，并将 token 写成加密形式。�
 | `import` | 导入网站素材，全部先标记待审核，重复执行不会重复添加 |
 | `preview` | 预览当天已到时间的时段和可选素材；不会发帖、占用时段或调用搜索/AI |
 | `status` | 查看运行状态、素材数和发布记录 |
-| `check` | 核对 Instagram 账号连接并加密保存 token；保持暂停状态，不创建或发布媒体 |
+| `check` | 核对 Instagram 账号连接；payload 为 `{"use_secret_token":true}` 时验证并更新 Secret 中的新 token；保持原暂停状态，不创建或发布媒体 |
 | `discover` | 执行当天还没调用过的搜索词，结果只作为来源候选 |
 | `add` | 添加可直接下载的公开图片/视频 URL，并锁定审核时的内容哈希 |
 | `approve` | 确认版权依据、署名和内容审核，加入发布池 |

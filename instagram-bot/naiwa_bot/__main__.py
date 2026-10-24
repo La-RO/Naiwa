@@ -55,8 +55,14 @@ def execute(command, payload, config, store, client, now, scratch):
             return preview(config, store, now)
         return {"paused": store.data["paused"], "assets": len(store.data["assets"]), "jobs": len(store.data["jobs"])}
     if command == "check":
-        account = Instagram(config, store, client).verify(now)
-        return {"connected": True, "account": account, "paused": store.data["paused"], "publishing_tested": False}
+        use_secret_token = payload.get("use_secret_token", False)
+        if type(use_secret_token) is not bool:
+            raise ValueError("use_secret_token must be a JSON boolean")
+        account = Instagram(config, store, client, use_secret_token=use_secret_token).verify(now)
+        result = {"connected": True, "account": account, "paused": store.data["paused"], "publishing_tested": False}
+        if use_secret_token:
+            result.update(token_source="IG_ACCESS_TOKEN", binding_updated=True)
+        return result
     if command == "run":
         if not isinstance(store, GitStore):
             raise ValueError("Live publishing is available only with --github-state")
