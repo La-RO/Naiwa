@@ -9,7 +9,7 @@
 - 导入本仓库 `data/images.json`、`data/videos.json`，读取本地素材。现有清单为 24 张图片、3 段视频。
 - Story 没有可用视频时，通过 Tavily 全网搜索奶蛙相关内容，每天最多 3 个搜索词。当前按运营者要求，自动检查最多 6 个网页、下载最多 1 段公开 MP4；成功后加入发布池，不再逐条人工审批。
 - 自动下载的视频记录 `rights=unverified` 和运营者发布策略，保留来源、文件哈希与下载结果；这代表运营者选择自动发布，不代表系统已经核实第三方转载许可。
-- 网络没有可用动态视频时，用 Gemini 生成 3–5 秒奶蛙虚构日常；默认 5 秒、每天最多请求 1 次，成功校验后自动进入发布池。需配置 GEMINI_API_KEY 和视频生成额度。
+- 网络没有可用动态视频时，用 Runway Gen-4 Turbo 生成 3–5 秒奶蛙虚构日常；默认 5 秒、每天最多提交 1 次，成功校验后自动进入发布池。需配置 RUNWAYML_API_SECRET 和 Runway API 额度。
 - WEBP/PNG 转成 1080×1350 JPEG；视频转成 1080×1920 H.264/AAC。Story 最长 15 秒，Reels 最长 60 秒；较长视频取开头片段。
 - 所有媒体保留来源署名；AI 视频在画面中固定标注 `AI-GENERATED / FICTIONAL DAILY LIFE`，Feed 文案也明确说明。
 - 内容哈希去重、30 天重复使用冷却、容器状态检查、失败重试上限、发布结果不确定时停止重发。
@@ -33,7 +33,7 @@
 | `IG_USER_ID` | 推荐 | 与 token 对应的 Instagram User ID，防止绑错账号 |
 | `BOT_ENCRYPTION_KEY` | 发布必需 | 加密长期 token，生成方法见下方 |
 | `TAVILY_API_KEY` | 联网搜素材时需要 | 搜索 API；缺失时跳过搜索，不影响已有素材发布 |
-| `GEMINI_API_KEY` | 生成 AI 视频时需要 | 有视频生成权限和可用额度的 Gemini API key |
+| `RUNWAYML_API_SECRET` | 缺片时生成 AI 视频需要 | Runway 开发者项目的 API key；需单独充值 API credits |
 
 `GITHUB_TOKEN` 由 Actions 自动提供，工作流只申请 `contents: write`，用于写入独立状态分支。若组织策略、Ruleset 或分支保护禁止创建/更新 `naiwa-bot-state`，必须先允许这个分支被工作流写入；状态无法保存时，机器人停止发布。
 
@@ -120,7 +120,7 @@ max_candidate_checks_per_day = 6
 queries = ["奶蛙 视频 mp4", "Naiwa 奶蛙 视频", "奶蛙 短视频"]
 ```
 
-在 GitHub Secrets 添加 `TAVILY_API_KEY` 使用搜索服务；添加 `GEMINI_API_KEY` 并开通视频生成额度，才可使用备用生成。已有可用 Story 视频时不自动调用搜索；库存为空时，在搜索时段之后收集候选，并在当天 Story 时段尝试提取和下载视频。暂停时不会自动搜索或下载。
+在 GitHub Secrets 添加 `TAVILY_API_KEY` 使用搜索服务；添加 `RUNWAYML_API_SECRET` 并为 Runway 开发者项目充值，才可使用备用生成。已有可用 Story 视频时不自动调用搜索；库存为空时，在搜索时段之后收集候选，并在当天 Story 时段尝试提取和下载视频。暂停时不会自动搜索或下载。
 
 自动流程支持公开 MP4 直链，以及静态网页的 `<video>`、Open Graph 和 JSON-LD 视频地址。只依据标题和搜索摘要筛选奶蛙相关性，不进行 AI 视觉识别。不能保证每个搜索结果都能下载；需要登录、播放器脚本或不可直接取出媒体的网站会跳过。没有可用结果时记录 `blocked`，不会发布一个网页链接冒充视频。
 
@@ -170,13 +170,14 @@ queries = ["奶蛙 视频 mp4", "Naiwa 奶蛙 视频", "奶蛙 短视频"]
 
 未完成任务在使用旧缓存或旧 Instagram 容器前重新检查素材类型与内容规则。旧缓存会按新版本重新生成；如果素材被归类为图集，未发布任务重新选片。正在发布但结果不明的任务继续进入人工核对，防止重复发出。
 
-备用生成使用已有 Gemini Interactions API：
+备用生成使用 **Runway Gen-4 Turbo**：
 
 ```toml
 [ai]
+provider = "runway"
 enabled = true
 duration_seconds = 5
-model = "gemini-omni-1.1-flash"
+model = "gen4_turbo"
 reference_image = "assets/gallery/l-18.webp"
 character_description = "Naiwa, a round yellow cartoon mascot with green eyes, a small head and a large soft belly"
 character_rights_confirmed = true
@@ -185,13 +186,19 @@ max_requests_per_day = 1
 daily_scenes = ["making breakfast", "reading in a library", "taking a walk in the park"]
 ```
 
-`duration_seconds` 只接受3、4、5。请求要求角色真实动作并禁止图集、静帧和只移动镜头；生成内容经过MP4/解码/动态采样与去重校验，发布转码再次强制裁到3–5秒。AI标记仍固定烧录在画面和Feed文案中。提供给模型的图片只用作角色参考，不会由机器人制作成静态图片循环视频。
+`duration_seconds` 只接受 3、4、5，默认生成 5 秒、720×1280 竖屏视频。参考图片交给视频模型保持奶蛙外观；机器人不会在本地把图片拼成循环或平移视频。提示词要求角色身体动作，生成结果须通过 MP4、解码、动态画面采样、时长及哈希去重校验。发布转码保留 3–5 秒限制，烧录 AI 虚构日常标记；Feed 文案也有说明。
 
-在 GitHub Secrets 配置 `GEMINI_API_KEY`，从 [Google AI Studio](https://aistudio.google.com/api-keys) 获取，并在服务商账户开通视频生成权限/额度。Tavily key 只用于搜索，不能代替视频生成 key。没有生成 key 时已有图片 Post 和合格网络视频仍可正常发布；只有备用生成不可用。
+在 [Runway Dev](https://dev.runway.com/) 注册开发者账户并创建项目，在 **API Keys** 新建 key，然后在仓库 **Settings → Secrets and variables → Actions** 添加 `RUNWAYML_API_SECRET`。在 Runway 项目的 Billing 充值 API credits。不要把 key 填进工作流参数或提交为文件。
 
-只有成功搜索、检查候选后没有可用视频才允许生成。搜索密钥缺失、超时、限流、网页临时不可访问、状态无法保存，都不会被当成“网络没有视频”来触发额外付费调用。每次生成先保存每日请求占用；超时不会退回次数，避免重复扣费。当日生成额度已用尽时不再追加付费请求。
+按 2026-10-24 核实的 [Runway 官方 API 价格](https://docs.dev.runwayml.com/guides/pricing/)，`gen4_turbo` 每秒 5 credits，每 credit US$0.01，5 秒约 **US$0.25**（税费另计）。开发者平台首次充值最低 US$10，见 [官方设置指南](https://docs.dev.runwayml.com/guides/setup/)。已有网络视频时不提交生成请求；没有 Runway key 时已有图片 Post 和合格网络视频仍正常发布。
 
-画面变化检测可以拦截纯静止MP4，但不能可靠识别所有带缩放或转场的第三方图集。已知三个图集通过内容元数据明确排除。测试使用本地真实转码与模拟服务响应，没有调用实际付费生成。
+只有成功搜索、检查候选后确认没有可用视频，才允许提交新的生成任务。搜索 key 缺失、搜索超时、限流或网页临时不可访问，不会触发新的付费任务。每次提交先保存每日请求占用，拿到任务编号后立即保存。提交结果不明时保留当日占用，不自动重复提交；历史 Gemini 请求记录也继续计入同日总限额。
+
+Runway 是异步接口。本次运行查询一次状态；未完成时 Story 记录为 `generating`，本次结果为 `waiting`。后续每小时运行继续查询**同一个任务**，完成后下载并发布，所以首次需要生成的 Story 可能延后一个或多个小时。手动 `run` 也可以继续检查，机器人对同一个任务至少间隔 5 秒查询。
+
+已保存的任务优先续查，跨日或当天搜索失败时也不会重新提交。查询或下载临时失败保留任务编号，下一次只重试查询/下载；任务失败、取消、失效或视频校验不合格时，保留当日次数并记录原因。生成服务失败不阻止同日图片 Post 发布。临时下载链接不会写入公开状态；完成视频保存在状态分支，以稳定链接交给 Instagram。
+
+画面变化检测可以拦截纯静止MP4，但不能可靠识别所有带缩放或转场的第三方图集。已知三个图集通过内容元数据明确排除。测试使用本地真实转码与模拟 Runway 响应，没有调用实际付费生成。
 
 ## 排期、存储与恢复
 
@@ -228,7 +235,7 @@ python -m pytest -q
 python -m naiwa_bot preview
 ```
 
-本地默认只预览，不会发帖。模拟测试覆盖真实目录导入、授权门槛、日历周期、夏令时、hash 去重、视频转码、AI 画面标记、token 加密、账号核对、搜索限额、AI 请求限额和发布不确定时停止重试。真实 Instagram 发布、Meta App Review、GitHub 工作流执行与实际付费视频生成，需要连接账号后再验收。
+本地默认只预览，不会发帖。模拟测试覆盖真实目录导入、授权门槛、日历周期、夏令时、hash 去重、视频转码、AI 画面标记、token 加密、账号核对、搜索限额、Runway 每日限额、异步任务恢复、输出校验和发布不确定时停止重试。真实 Instagram 发布、Meta App Review、GitHub 工作流执行与实际付费视频生成，需要连接账号后再验收。
 
 ## 官方参考
 
@@ -237,5 +244,6 @@ python -m naiwa_bot preview
 - [GitHub 定时与手动触发](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows)
 - [GitHub 任务并发控制](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)
 - [Tavily Search API](https://docs.tavily.com/documentation/api-reference/endpoint/search)
-- [Google 视频生成和 Interactions 接口](https://ai.google.dev/gemini-api/docs/omni)
-- [OpenAI API 停用清单](https://developers.openai.com/api/docs/deprecations)
+- [Runway API 入门](https://docs.dev.runwayml.com/guides/using-the-api/)
+- [Runway API 价格](https://docs.dev.runwayml.com/guides/pricing/)
+- [Runway 输出与临时链接](https://docs.dev.runwayml.com/assets/outputs/)

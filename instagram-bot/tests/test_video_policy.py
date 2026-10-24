@@ -1,23 +1,18 @@
-import base64
 import copy
 from datetime import datetime, timezone
 import hashlib
-import json
 from pathlib import Path
-import subprocess
 from urllib.parse import parse_qs
 
 from cryptography.fernet import Fernet
 import httpx
-import imageio_ffmpeg
 import pytest
 
 from naiwa_bot.auto_video import replenish_from_web
 from naiwa_bot.catalogue import eligible, import_catalogue
 from naiwa_bot.config import Config
 from naiwa_bot.engine import publish_slot
-from naiwa_bot.network import RemoteError
-from naiwa_bot.providers import Instagram, discover, generate_video
+from naiwa_bot.providers import Instagram, discover
 from naiwa_bot.state import Store
 
 
@@ -252,86 +247,3 @@ def test_failed_search_query_cannot_later_appear_completed(cfg, store, tmp_path,
         result = replenish_from_web(cfg, store, client, NOW, tmp_path / "search")
     assert len(calls) == 1 and result["status"] == "search_unavailable"
     assert record["query_status"]["Naiwa video"] == "failed_or_unknown"
-
-
-@pytest.fixture(scope="module")
-def video_bytes(tmp_path_factory):
-    folder = tmp_path_factory.mktemp("policy-video-sources")
-    result = {}
-    for name, source in [("motion", "testsrc2=size=96x96:rate=12"), ("still", "color=c=yellow:size=96x96:rate=12")]:
-        target = folder / (name + ".mp4")
-        subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-hide_banner", "-loglevel", "error",
-                        "-f", "lavfi", "-i", source, "-t", "4", "-c:v", "libx264", "-threads", "1",
-                        "-pix_fmt", "yuv420p", "-movflags", "+faststart", str(target)],
-                       check=True, capture_output=True, timeout=30)
-        result[name] = target.read_bytes()
-    return result
-
-
-@pytest.fixture
-def ai_cfg(cfg, monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "dummy-video-key")
-    cfg.ai.update(enabled=True, character_rights_confirmed=True, auto_approve=True,
-                  reference_image="assets/gallery/l-18.webp", duration_seconds=5, max_requests_per_day=1)
-    return cfg
-
-
-def video_response(content):
-    return {"status": "completed", "steps": [{"type": "model_output", "content": [
-        {"type": "video", "data": base64.b64encode(content).decode()}]}]}
-
-
-def test_valid_ai_motion_requests_five_seconds_and_enters_pool(ai_cfg, store, video_bytes):
-    requests = []
-    def handler(request):
-        requests.append(request)
-        return httpx.Response(200, json=video_response(video_bytes["motion"]))
-    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
-        asset = generate_video(ai_cfg, store, client, NOW)
-        assert generate_video(ai_cfg, store, client, NOW) is None
-    assert len(requests) == 1
-    body = json.loads(requests[0].content)
-    assert body["response_format"]["duration"] == "5s"
-    assert "visible body motion" in body["input"][1]["text"]
-    assert asset["rights"] == "ai" and asset["reviewed"] and asset["video_style"] == "motion"
-    assert eligible(store, "story", NOW, 30) == [asset]
-    assert (store.path / asset["state_path"]).read_bytes() == video_bytes["motion"]
-    assert not list(store.path.glob("*.pending"))
-    assert all(not name.endswith(".pending") for names in store.saved_media for name in names)
-
-
-@pytest.mark.parametrize("failure", ["timeout", "corrupt", "still"])
-def test_bad_ai_output_never_enters_pool_or_retries_same_day(ai_cfg, store, video_bytes, failure):
-    calls = []
-    def handler(request):
-        calls.append(request)
-        if failure == "timeout":
-            raise httpx.ReadTimeout("simulated paid request uncertainty")
-        content = video_bytes["still"] if failure == "still" else b"not-an-mp4"
-        return httpx.Response(200, json=video_response(content))
-    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
-        with pytest.raises(RemoteError):
-            generate_video(ai_cfg, store, client, NOW)
-        assert generate_video(ai_cfg, store, client, NOW) is None
-    assert len(calls) == 1 and store.data["assets"] == {}
-    records = store.data["ai_requests"][NOW.astimezone(ai_cfg.timezone).date().isoformat()]
-    assert len(records) == 1 and records[0]["status"] == "failed_or_unknown"
-    assert list((store.path / "media").iterdir()) == []
-    assert not list(store.path.glob("*.pending"))
-    assert all(not name.endswith(".pending") for names in store.saved_media for name in names)
-
-
-def test_duplicate_ai_bytes_do_not_add_an_asset_or_allow_a_second_charge(ai_cfg, store, video_bytes):
-    digest = hashlib.sha256(video_bytes["motion"]).hexdigest()
-    existing = insert(store, "existing-same-source", sha256=digest)
-    calls = []
-    def handler(request):
-        calls.append(request)
-        return httpx.Response(200, json=video_response(video_bytes["motion"]))
-    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
-        with pytest.raises(RemoteError):
-            generate_video(ai_cfg, store, client, NOW)
-        assert generate_video(ai_cfg, store, client, NOW) is None
-    assert len(calls) == 1 and store.data["assets"] == {existing["id"]: existing}
-    assert list((store.path / "media").iterdir()) == []
-    assert all(not name.endswith(".pending") for names in store.saved_media for name in names)

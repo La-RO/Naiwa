@@ -1,4 +1,3 @@
-import base64
 import copy
 from datetime import datetime, timezone
 import json
@@ -30,14 +29,6 @@ def cfg():
     value = Config.load(ROOT)
     value.ai.update(enabled=False, character_rights_confirmed=False, auto_approve=False)
     return value
-
-
-@pytest.fixture(scope="session")
-def small_mp4(tmp_path_factory):
-    source = tmp_path_factory.mktemp("generated-video") / "sample.mp4"
-    subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error", "-f", "lavfi", "-i",
-                    "testsrc2=size=160x240:rate=24", "-t", "3", "-c:v", "libx264", str(source)], check=True)
-    return source.read_bytes()
 
 
 class MemoryStore(Store):
@@ -364,7 +355,7 @@ def test_discovery_calls_once_per_query_per_day(cfg, store, monkeypatch):
 
 
 def test_ai_daily_cap_includes_unknown_requests(cfg, store, monkeypatch):
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("RUNWAYML_API_SECRET", "test-key")
     cfg.ai.update(enabled=True, character_rights_confirmed=True, reference_image="assets/gallery/l-18.webp")
     calls = []
     def handler(req):
@@ -377,14 +368,12 @@ def test_ai_daily_cap_includes_unknown_requests(cfg, store, monkeypatch):
     assert len(calls) == 1
 
 
-def test_ai_rest_steps_are_parsed_and_await_review(cfg, store, monkeypatch, small_mp4):
-    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
-    cfg.ai.update(enabled=True, character_rights_confirmed=True, reference_image="assets/gallery/l-18.webp", auto_approve=False)
-    response = {"status":"completed", "steps":[{"type":"model_output", "content":[{"type":"video", "data":base64.b64encode(small_mp4).decode()}]}]}
-    client = httpx.Client(transport=httpx.MockTransport(lambda req: httpx.Response(200,json=response)))
-    asset = generate_video(cfg, store, client, NOW)
-    assert asset["ai_generated"] and asset["rights"] == "pending" and not asset["reviewed"]
-    assert not eligible(store, "story", NOW, 30)
+def test_disabled_ai_ignores_all_provider_keys(cfg, store, monkeypatch):
+    monkeypatch.setenv("RUNWAYML_API_SECRET", "dummy-runway-key")
+    monkeypatch.setenv("GEMINI_API_KEY", "dummy-unused-key")
+    before = copy.deepcopy(store.data)
+    assert generate_video(cfg, store, None, NOW) is None
+    assert store.data == before and store.snapshots == []
 
 
 def test_oauth_rejects_csrf_before_network(cfg, store, monkeypatch):

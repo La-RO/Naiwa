@@ -27,9 +27,10 @@ max_auto_videos_per_day = 1
 max_candidate_checks_per_day = 6
 
 [ai]
+provider = "runway"
 enabled = true
 duration_seconds = 5
-model = "gemini-omni-1.1-flash"
+model = "gen4_turbo"
 # A licensed reference image, relative to the repository root.
 reference_image = "assets/gallery/l-18.webp"
 character_description = "Naiwa, a round yellow cartoon mascot with green eyes, a small head and a large soft belly"

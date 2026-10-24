@@ -56,7 +56,7 @@ def cfg():
 @pytest.fixture(autouse=True)
 def fake_public_network(monkeypatch):
     monkeypatch.setenv("TAVILY_API_KEY", "test-search-key")
-    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("RUNWAYML_API_SECRET", raising=False)
     monkeypatch.setattr("naiwa_bot.network.socket.getaddrinfo", lambda *_args, **_kwargs: [
         (socket.AF_INET, socket.SOCK_STREAM, socket.IPPROTO_TCP, "", ("93.184.216.34", 443))])
 

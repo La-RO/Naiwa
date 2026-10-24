@@ -6,6 +6,7 @@ from .auto_video import replenish_from_web
 from .media import MEDIA_POLICY_VERSION, prepare
 from .providers import Instagram, discover, generate_video
 from .network import RemoteError
+from .video_gen import generation_outcome, pending_generation
 
 
 TERMINAL = {"published", "needs_review", "abandoned"}
@@ -80,20 +81,35 @@ def publish_slot(config, store, client, ig, slot, channel, now, scratch, prepare
                 job.pop(field, None)
             job.update(status="planned", attempts=0, media_policy_version=MEDIA_POLICY_VERSION)
             store.save()
-    if not job or job["status"] == "blocked":
+    if not job or job["status"] in ("blocked", "generating"):
         choices = eligible(store, channel, now, config.schedule["reuse_after_days"])
         web_status = "not_attempted"
-        if not choices and channel == "story" and config.discovery.get("auto_publish", False):
+        generation_status, generation_reason = "not_attempted", ""
+        pending = pending_generation(store) if channel == "story" else None
+        if not choices and pending:
+            web_status = "generation_pending"
+        elif not choices and channel == "story" and config.discovery.get("auto_publish", False):
             web = replenish_from_web(config, store, client, now, scratch / "discovery")
             web_status = web["status"]
             choices = eligible(store, channel, now, config.schedule["reuse_after_days"])
-        if not choices and channel == "story" and web_status == "no_usable_video":
-            generate_video(config, store, client, now)
+        if not choices and channel == "story" and (web_status == "no_usable_video" or pending):
+            try:
+                generate_video(config, store, client, now)
+                generation_status, generation_reason = generation_outcome(config, store, now)
+            except (ValueError, RemoteError) as error:
+                generation_status, _ = generation_outcome(config, store, now)
+                if generation_status == "daily_limit":
+                    generation_status = "unavailable"
+                generation_reason = safe_error(error)
             choices = eligible(store, channel, now, config.schedule["reuse_after_days"])
         if not choices:
-            store.data["jobs"][slot] = {"channel": channel, "status": "blocked", "error": "No usable unused material; web status: " + web_status}
+            waiting = generation_status in ("submitted", "pending", "poll_failed", "download_failed")
+            store.data["jobs"][slot] = {"channel": channel, "status": "generating" if waiting else "blocked",
+                "error": "No usable unused material; web status: " + web_status}
+            if generation_status != "not_attempted":
+                store.data["jobs"][slot].update(generation_status=generation_status, generation_reason=generation_reason)
             store.save()
-            return "blocked"
+            return "waiting" if waiting else "blocked"
         asset = choices[0]
         job = {"channel": channel, "status": "planned", "asset_id": asset["id"], "kind": asset["kind"],
                "attempts": 0, "created_at": now.isoformat(), "media_policy_version": MEDIA_POLICY_VERSION}
